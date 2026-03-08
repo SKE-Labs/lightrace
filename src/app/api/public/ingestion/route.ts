@@ -13,15 +13,10 @@ export async function POST(request: NextRequest) {
 
   try {
     // Authenticate
-    const authResult = await authenticateApiKey(
-      request.headers.get("authorization")
-    );
+    const authResult = await authenticateApiKey(request.headers.get("authorization"));
 
     if (!authResult.valid) {
-      return NextResponse.json(
-        { error: authResult.error },
-        { status: 401, headers: corsHeaders }
-      );
+      return NextResponse.json({ error: authResult.error }, { status: 401, headers: corsHeaders });
     }
 
     // Parse body
@@ -31,22 +26,19 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid request body", details: parsed.error.message },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: corsHeaders },
       );
     }
 
     // Process batch
-    const result = await processEventBatch(
-      parsed.data.batch,
-      authResult.projectId
-    );
+    const result = await processEventBatch(parsed.data.batch, authResult.projectId);
 
     return NextResponse.json(result, { status: 207, headers: corsHeaders });
   } catch (error) {
     console.error("[ingestion] Unexpected error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: corsHeaders },
     );
   }
 }

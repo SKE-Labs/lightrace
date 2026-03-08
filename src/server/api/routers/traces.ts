@@ -8,7 +8,7 @@ export const tracesRouter = router({
         limit: z.number().min(1).max(100).default(50),
         cursor: z.string().nullish(),
         search: z.string().optional(),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { limit, cursor, search } = input;
@@ -47,22 +47,10 @@ export const tracesRouter = router({
       }
 
       const items = traces.map((trace) => {
-        const totalTokens = trace.observations.reduce(
-          (sum, o) => sum + o.totalTokens,
-          0
-        );
-        const promptTokens = trace.observations.reduce(
-          (sum, o) => sum + o.promptTokens,
-          0
-        );
-        const completionTokens = trace.observations.reduce(
-          (sum, o) => sum + o.completionTokens,
-          0
-        );
-        const totalCost = trace.observations.reduce(
-          (sum, o) => sum + (o.totalCost ?? 0),
-          0
-        );
+        const totalTokens = trace.observations.reduce((sum, o) => sum + o.totalTokens, 0);
+        const promptTokens = trace.observations.reduce((sum, o) => sum + o.promptTokens, 0);
+        const completionTokens = trace.observations.reduce((sum, o) => sum + o.completionTokens, 0);
+        const totalCost = trace.observations.reduce((sum, o) => sum + (o.totalCost ?? 0), 0);
 
         const times = trace.observations
           .map((o) => o.startTime.getTime())
@@ -89,25 +77,23 @@ export const tracesRouter = router({
       return { items, nextCursor };
     }),
 
-  byId: protectedProcedure
-    .input(z.object({ id: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const trace = await ctx.db.trace.findUnique({
-        where: { id: input.id },
-        include: {
-          observations: {
-            orderBy: { startTime: "asc" },
-          },
-          scores: true,
+  byId: protectedProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
+    const trace = await ctx.db.trace.findUnique({
+      where: { id: input.id },
+      include: {
+        observations: {
+          orderBy: { startTime: "asc" },
         },
-      });
+        scores: true,
+      },
+    });
 
-      if (!trace) {
-        return null;
-      }
+    if (!trace) {
+      return null;
+    }
 
-      return trace;
-    }),
+    return trace;
+  }),
 
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))

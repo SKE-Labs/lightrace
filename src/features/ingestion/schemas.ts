@@ -60,7 +60,10 @@ const createSpanBody = observationBase;
 const updateSpanBody = observationBase.partial().extend({ id: z.string() });
 
 const createGenerationBody = observationBase.merge(generationFields);
-const updateGenerationBody = observationBase.partial().merge(generationFields.partial()).extend({ id: z.string() });
+const updateGenerationBody = observationBase
+  .partial()
+  .merge(generationFields.partial())
+  .extend({ id: z.string() });
 
 const createEventBody = observationBase;
 
@@ -76,17 +79,77 @@ const scoreBody = z.object({
 });
 
 export const ingestionEvent = z.discriminatedUnion("type", [
-  z.object({ id: z.string(), type: z.literal("trace-create"), timestamp: z.string(), body: traceBody, metadata: z.any().optional() }),
-  z.object({ id: z.string(), type: z.literal("span-create"), timestamp: z.string(), body: createSpanBody, metadata: z.any().optional() }),
-  z.object({ id: z.string(), type: z.literal("span-update"), timestamp: z.string(), body: updateSpanBody, metadata: z.any().optional() }),
-  z.object({ id: z.string(), type: z.literal("generation-create"), timestamp: z.string(), body: createGenerationBody, metadata: z.any().optional() }),
-  z.object({ id: z.string(), type: z.literal("generation-update"), timestamp: z.string(), body: updateGenerationBody, metadata: z.any().optional() }),
-  z.object({ id: z.string(), type: z.literal("event-create"), timestamp: z.string(), body: createEventBody, metadata: z.any().optional() }),
-  z.object({ id: z.string(), type: z.literal("score-create"), timestamp: z.string(), body: scoreBody, metadata: z.any().optional() }),
-  z.object({ id: z.string(), type: z.literal("sdk-log"), timestamp: z.string(), body: z.any(), metadata: z.any().optional() }),
+  z.object({
+    id: z.string(),
+    type: z.literal("trace-create"),
+    timestamp: z.string(),
+    body: traceBody,
+    metadata: z.any().optional(),
+  }),
+  z.object({
+    id: z.string(),
+    type: z.literal("span-create"),
+    timestamp: z.string(),
+    body: createSpanBody,
+    metadata: z.any().optional(),
+  }),
+  z.object({
+    id: z.string(),
+    type: z.literal("span-update"),
+    timestamp: z.string(),
+    body: updateSpanBody,
+    metadata: z.any().optional(),
+  }),
+  z.object({
+    id: z.string(),
+    type: z.literal("generation-create"),
+    timestamp: z.string(),
+    body: createGenerationBody,
+    metadata: z.any().optional(),
+  }),
+  z.object({
+    id: z.string(),
+    type: z.literal("generation-update"),
+    timestamp: z.string(),
+    body: updateGenerationBody,
+    metadata: z.any().optional(),
+  }),
+  z.object({
+    id: z.string(),
+    type: z.literal("event-create"),
+    timestamp: z.string(),
+    body: createEventBody,
+    metadata: z.any().optional(),
+  }),
+  z.object({
+    id: z.string(),
+    type: z.literal("score-create"),
+    timestamp: z.string(),
+    body: scoreBody,
+    metadata: z.any().optional(),
+  }),
+  z.object({
+    id: z.string(),
+    type: z.literal("sdk-log"),
+    timestamp: z.string(),
+    body: z.any(),
+    metadata: z.any().optional(),
+  }),
   // Accept but handle gracefully — map to SPAN
-  z.object({ id: z.string(), type: z.literal("observation-create"), timestamp: z.string(), body: observationBase, metadata: z.any().optional() }),
-  z.object({ id: z.string(), type: z.literal("observation-update"), timestamp: z.string(), body: observationBase.partial().extend({ id: z.string() }), metadata: z.any().optional() }),
+  z.object({
+    id: z.string(),
+    type: z.literal("observation-create"),
+    timestamp: z.string(),
+    body: observationBase,
+    metadata: z.any().optional(),
+  }),
+  z.object({
+    id: z.string(),
+    type: z.literal("observation-update"),
+    timestamp: z.string(),
+    body: observationBase.partial().extend({ id: z.string() }),
+    metadata: z.any().optional(),
+  }),
 ]);
 
 export const ingestionBatchSchema = z.object({
@@ -97,7 +160,15 @@ export const ingestionBatchSchema = z.object({
 export type IngestionEvent = z.infer<typeof ingestionEvent>;
 
 export function normalizeUsage(usage: z.infer<typeof usageSchema>) {
-  if (!usage) return { promptTokens: 0, completionTokens: 0, totalTokens: 0, inputCost: null, outputCost: null, totalCost: null };
+  if (!usage)
+    return {
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      inputCost: null,
+      outputCost: null,
+      totalCost: null,
+    };
 
   const promptTokens = usage.promptTokens ?? usage.input ?? 0;
   const completionTokens = usage.completionTokens ?? usage.output ?? 0;

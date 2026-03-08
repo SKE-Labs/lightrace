@@ -23,14 +23,12 @@ export const settingsRouter = router({
       z.object({
         projectId: z.string(),
         note: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const publicKey = `pk-lt-${randomBytes(16).toString("hex")}`;
       const secretKey = `sk-lt-${randomBytes(24).toString("hex")}`;
-      const hashedSecretKey = createHash("sha256")
-        .update(secretKey)
-        .digest("hex");
+      const hashedSecretKey = createHash("sha256").update(secretKey).digest("hex");
       const displaySecretKey = `sk-lt-...${secretKey.slice(-4)}`;
 
       await ctx.db.apiKey.create({

@@ -12,7 +12,7 @@ export interface AuthError {
 }
 
 export async function authenticateApiKey(
-  authHeader: string | null
+  authHeader: string | null,
 ): Promise<AuthResult | AuthError> {
   if (!authHeader) {
     return { valid: false, error: "Missing Authorization header" };

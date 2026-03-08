@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# Protect main branch
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+if [ "$current_branch" = "main" ]; then
+    echo "Warning: committing to main branch"
+fi
+
+# Run lint-staged (format + lint on staged files)
+pnpm run precommit

@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# Run typecheck before pushing
+pnpm run typecheck

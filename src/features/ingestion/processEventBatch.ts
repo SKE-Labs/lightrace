@@ -38,7 +38,7 @@ async function ensureTraceExists(traceId: string, projectId: string) {
 
 async function processTraceCreate(
   body: IngestionEvent & { type: "trace-create" },
-  projectId: string
+  projectId: string,
 ) {
   const data = body.body;
   const traceId = data.id ?? body.id;
@@ -80,7 +80,7 @@ async function processObservation(
   event: IngestionEvent,
   projectId: string,
   type: ObservationType,
-  isUpdate: boolean
+  isUpdate: boolean,
 ) {
   const body = event.body as Record<string, unknown>;
   const observationId = body.id as string;
@@ -89,7 +89,7 @@ async function processObservation(
   await ensureTraceExists(traceId, projectId);
 
   const usage = normalizeUsage(
-    "usage" in body ? (body.usage as Parameters<typeof normalizeUsage>[0]) : null
+    "usage" in body ? (body.usage as Parameters<typeof normalizeUsage>[0]) : null,
   );
 
   if (isUpdate) {
@@ -97,19 +97,24 @@ async function processObservation(
     const updateData: Record<string, unknown> = {};
     if (body.name !== undefined) updateData.name = body.name;
     if (body.startTime !== undefined) updateData.startTime = parseDate(body.startTime);
-    if (body.endTime !== undefined) updateData.endTime = body.endTime ? parseDate(body.endTime) : null;
+    if (body.endTime !== undefined)
+      updateData.endTime = body.endTime ? parseDate(body.endTime) : null;
     if (body.input !== undefined) updateData.input = body.input;
     if (body.output !== undefined) updateData.output = body.output;
     if (body.metadata !== undefined) updateData.metadata = body.metadata;
     if (body.level !== undefined) updateData.level = parseLevel(body.level as string);
     if (body.statusMessage !== undefined) updateData.statusMessage = body.statusMessage;
-    if (body.parentObservationId !== undefined) updateData.parentObservationId = body.parentObservationId;
+    if (body.parentObservationId !== undefined)
+      updateData.parentObservationId = body.parentObservationId;
     if (body.version !== undefined) updateData.version = body.version;
     if ("completionStartTime" in body && body.completionStartTime !== undefined) {
-      updateData.completionStartTime = body.completionStartTime ? parseDate(body.completionStartTime) : null;
+      updateData.completionStartTime = body.completionStartTime
+        ? parseDate(body.completionStartTime)
+        : null;
     }
     if ("model" in body && body.model !== undefined) updateData.model = body.model;
-    if ("modelParameters" in body && body.modelParameters !== undefined) updateData.modelParameters = body.modelParameters;
+    if ("modelParameters" in body && body.modelParameters !== undefined)
+      updateData.modelParameters = body.modelParameters;
     if ("usage" in body && body.usage) {
       updateData.promptTokens = usage.promptTokens;
       updateData.completionTokens = usage.completionTokens;
@@ -210,7 +215,7 @@ async function processObservation(
 
 async function processScoreCreate(
   event: IngestionEvent & { type: "score-create" },
-  projectId: string
+  projectId: string,
 ) {
   const body = event.body;
   const scoreId = body.id ?? event.id;
@@ -241,7 +246,7 @@ async function processScoreCreate(
 
 export async function processEventBatch(
   rawEvents: unknown[],
-  projectId: string
+  projectId: string,
 ): Promise<BatchResult> {
   const result: BatchResult = { successes: [], errors: [] };
 
