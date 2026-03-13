@@ -1,6 +1,6 @@
-# Contributing to Lighttrace
+# Contributing to Lightrace
 
-Thank you for your interest in contributing to Lighttrace! This guide will help you get started.
+Thank you for your interest in contributing to Lightrace! This guide will help you get started.
 
 ## Development Setup
 
@@ -14,8 +14,8 @@ Thank you for your interest in contributing to Lighttrace! This guide will help 
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-org/lighttrace.git
-cd lighttrace
+git clone https://github.com/your-org/lightrace.git
+cd lightrace
 
 # Start PostgreSQL
 docker compose up -d
@@ -33,7 +33,7 @@ pnpm db:seed
 pnpm dev
 ```
 
-Open http://localhost:3000 and login with `demo@lighttrace.dev` / `password`.
+Open http://localhost:3001 and login with `demo@lightrace.dev` / `password`.
 
 ### SDK Testing
 
@@ -43,7 +43,7 @@ from langfuse import Langfuse
 langfuse = Langfuse(
     public_key="pk-lt-demo",
     secret_key="sk-lt-demo",
-    host="http://localhost:3000"
+    host="http://localhost:3001"
 )
 
 trace = langfuse.trace(name="test")

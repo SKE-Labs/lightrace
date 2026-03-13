@@ -8,10 +8,10 @@ async function main() {
   // Create demo user
   const hashedPassword = await hash("password", 12);
   const user = await db.user.upsert({
-    where: { email: "demo@lighttrace.dev" },
+    where: { email: "demo@lightrace.dev" },
     update: {},
     create: {
-      email: "demo@lighttrace.dev",
+      email: "demo@lightrace.dev",
       password: hashedPassword,
       name: "Demo User",
     },
@@ -47,8 +47,8 @@ async function main() {
   });
   console.log(`API Key: ${publicKey} / ${secretKey}`);
 
-  console.log("\n--- Lighttrace seeded ---");
-  console.log(`Login: demo@lighttrace.dev / password`);
+  console.log("\n--- Lightrace seeded ---");
+  console.log(`Login: demo@lightrace.dev / password`);
   console.log(`SDK:   public_key=${publicKey}  secret_key=${secretKey}`);
 }
 

@@ -1,36 +1,94 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Lightrace
 
-## Getting Started
+Lightweight, open-source LLM tracing tool for local development. Drop-in compatible with the [Langfuse](https://langfuse.com) Python/JS SDKs.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
+- Langfuse SDK compatible ingestion (`POST /api/public/ingestion`)
+- Trace and observation viewer with token usage breakdown
+- Single Next.js app + PostgreSQL (2 containers total)
+- Auth via credentials (Auth.js v5)
+
+## Quick Start
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org) 20+
+- [pnpm](https://pnpm.io) 10+
+- [Docker](https://www.docker.com)
+
+### Setup
+
+```sh
+# Start PostgreSQL
+docker compose up -d
+
+# Install dependencies
+pnpm install
+
+# Run migrations and seed demo data
+pnpm db:migrate
+pnpm db:seed
+
+# Start dev server (port 3001)
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3001](http://localhost:3001) and log in with the demo credentials:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Email:** `demo@lightrace.dev`
+- **Password:** `password`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### SDK Configuration
 
-## Learn More
+Point any Langfuse SDK at Lightrace:
 
-To learn more about Next.js, take a look at the following resources:
+```python
+# Python
+from langfuse import Langfuse
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+langfuse = Langfuse(
+    public_key="pk-lt-demo",
+    secret_key="sk-lt-demo",
+    host="http://localhost:3001",
+)
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```typescript
+// TypeScript
+import Langfuse from "langfuse";
 
-## Deploy on Vercel
+const langfuse = new Langfuse({
+  publicKey: "pk-lt-demo",
+  secretKey: "sk-lt-demo",
+  baseUrl: "http://localhost:3001",
+});
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Scripts
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Command           | Description             |
+| ----------------- | ----------------------- |
+| `pnpm dev`        | Start dev server (3001) |
+| `pnpm build`      | Production build        |
+| `pnpm test`       | Run tests (Vitest)      |
+| `pnpm lint`       | ESLint                  |
+| `pnpm format`     | Prettier                |
+| `pnpm typecheck`  | TypeScript check        |
+| `pnpm db:migrate` | Run Prisma migrations   |
+| `pnpm db:seed`    | Seed demo data          |
+| `pnpm db:studio`  | Open Prisma Studio      |
+
+## Tech Stack
+
+- **Framework:** Next.js 15 (App Router)
+- **UI:** shadcn/ui + Tailwind CSS v4
+- **API:** tRPC v11 + REST (ingestion)
+- **Auth:** Auth.js v5 (credentials provider)
+- **ORM:** Prisma 6 + PostgreSQL
+- **Validation:** Zod
+- **Testing:** Vitest
+
+## License
+
+MIT

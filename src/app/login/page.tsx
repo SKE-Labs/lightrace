@@ -51,7 +51,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="demo@lighttrace.dev"
+              placeholder="demo@lightrace.dev"
               required
             />
           </div>
@@ -72,7 +72,7 @@ export default function LoginPage() {
         </form>
 
         <p className="text-center text-xs text-muted-foreground">
-          Demo: demo@lighttrace.dev / password
+          Demo: demo@lightrace.dev / password
         </p>
       </div>
     </div>

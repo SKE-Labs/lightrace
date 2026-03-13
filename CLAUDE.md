@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Lighttrace is a lightweight, open-source LLM tracing tool for local development. It is compatible with the Langfuse Python/JS SDKs and provides a simple UI for viewing traces, observations, and token usage.
+Lightrace is a lightweight, open-source LLM tracing tool for local development. It is compatible with the Langfuse Python/JS SDKs and provides a simple UI for viewing traces, observations, and token usage.
 
 ## Architecture
 
@@ -56,7 +56,7 @@ pnpm db:studio        # Prisma Studio
 
 - PostgreSQL on port 5435 (docker-compose)
 - 5 models: User, Project, ApiKey, Trace, Observation, Score
-- Demo login: `demo@lighttrace.dev` / `password`
+- Demo login: `demo@lightrace.dev` / `password`
 - Demo API keys: `pk-lt-demo` / `sk-lt-demo`
 
 ## Code Conventions
