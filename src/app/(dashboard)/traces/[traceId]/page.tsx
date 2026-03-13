@@ -8,7 +8,10 @@ import Link from "next/link";
 
 export default function TraceDetailPage({ params }: { params: Promise<{ traceId: string }> }) {
   const { traceId } = use(params);
-  const { data: trace, isLoading } = trpc.traces.byId.useQuery({ id: traceId });
+  const { data: trace, isLoading } = trpc.traces.byId.useQuery(
+    { id: traceId },
+    { refetchInterval: 2000 },
+  );
   const [selected, setSelected] = useState<{ id: string; isTrace: boolean } | null>(null);
 
   if (isLoading) {

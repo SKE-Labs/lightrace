@@ -1,18 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { formatDuration, formatTokens, formatCost } from "@/lib/utils";
 
 export function TraceList() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const { data, isLoading, isError, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
     trpc.traces.list.useInfiniteQuery(
       { limit: 50, search: search || undefined },
-      { getNextPageParam: (lastPage) => lastPage.nextCursor, retry: false },
+      { getNextPageParam: (lastPage) => lastPage.nextCursor, retry: false, refetchInterval: 3000 },
     );
 
   const traces = data?.pages.flatMap((p) => p.items) ?? [];
@@ -76,15 +77,13 @@ export function TraceList() {
             {traces.map((trace) => (
               <tr
                 key={trace.id}
-                className="border-b border-border/50 hover:bg-accent/30 transition-colors"
+                className="border-b border-border/50 hover:bg-accent/30 transition-colors cursor-pointer"
+                onClick={() => router.push(`/traces/${trace.id}`)}
               >
                 <td className="px-6 py-3">
-                  <Link
-                    href={`/traces/${trace.id}`}
-                    className="font-medium text-foreground hover:underline"
-                  >
+                  <span className="font-medium text-foreground">
                     {trace.name || trace.id.slice(0, 8)}
-                  </Link>
+                  </span>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {new Date(trace.timestamp).toLocaleString()}

@@ -40,7 +40,7 @@ export default function LoginPage() {
           <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold">
             LT
           </div>
-          <h1 className="mt-4 text-xl font-semibold">Light Trace</h1>
+          <h1 className="mt-4 text-xl font-semibold">LightRace</h1>
           <p className="mt-1 text-sm text-muted-foreground">Sign in to view your traces</p>
         </div>
 

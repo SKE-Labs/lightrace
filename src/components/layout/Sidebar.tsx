@@ -26,7 +26,7 @@ export function Sidebar() {
         <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold">
           LT
         </div>
-        <span className="text-sm font-semibold tracking-tight">Light Trace</span>
+        <span className="text-sm font-semibold tracking-tight">Light Race</span>
       </div>
       <nav className="flex-1 space-y-1 px-2 py-3">
         {navItems.map((item) => {

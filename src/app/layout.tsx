@@ -17,7 +17,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Light Trace",
+  title: "LightRace",
   description: "Lightweight LLM tracing for local development",
 };
 
