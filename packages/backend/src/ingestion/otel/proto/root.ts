@@ -1,5 +1,5 @@
 // @ts-nocheck
-const $protobuf = require("protobufjs/minimal");
+import $protobuf from "protobufjs/minimal";
 // Common aliases
 const $Reader = $protobuf.Reader;
 const $Writer = $protobuf.Writer;

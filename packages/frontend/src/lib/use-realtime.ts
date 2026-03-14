@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { trpc } from "./trpc";
+import { useWsReady } from "./trpc-provider";
 
 /**
  * Subscribe to real-time trace updates for a project.
@@ -10,12 +11,13 @@ import { trpc } from "./trpc";
 export function useRealtimeTraceUpdates(projectId: string) {
   const utils = trpc.useUtils();
   const lastInvalidation = useRef(0);
+  const wsReady = useWsReady();
 
   trpc.realtime.onTraceUpdate.useSubscription(
     { projectId },
     {
+      enabled: wsReady,
       onData: () => {
-        // Debounce invalidations to avoid hammering the server
         const now = Date.now();
         if (now - lastInvalidation.current < 500) return;
         lastInvalidation.current = now;
@@ -36,10 +38,12 @@ export function useRealtimeTraceUpdates(projectId: string) {
 export function useRealtimeTraceDetail(projectId: string, traceId: string) {
   const utils = trpc.useUtils();
   const lastInvalidation = useRef(0);
+  const wsReady = useWsReady();
 
   trpc.realtime.onTraceUpdate.useSubscription(
     { projectId },
     {
+      enabled: wsReady,
       onData: (event) => {
         if (event.traceId !== traceId) return;
 

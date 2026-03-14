@@ -42,6 +42,12 @@ docker compose up -d
 # Install dependencies
 pnpm install
 
+# Copy env file and symlink to packages
+cp .env.example .env
+ln -sf ../../.env packages/shared/.env
+ln -sf ../../.env packages/backend/.env
+ln -sf ../../.env packages/frontend/.env
+
 # Generate Prisma client, run migrations, seed demo data
 pnpm db:generate
 pnpm db:migrate

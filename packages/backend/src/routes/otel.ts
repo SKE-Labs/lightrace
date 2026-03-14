@@ -4,17 +4,15 @@ import { promisify } from "node:util";
 import { authenticateApiKey } from "@lightrace/shared/auth/apiAuth";
 import { processOtelResourceSpans } from "../ingestion/otel/processOtelSpans";
 import { publishTraceUpdate } from "../realtime/pubsub";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore — generated protobuf file
+import { $root } from "../ingestion/otel/proto/root";
 
 const gunzipAsync = promisify(gunzip);
 
-// Lazy-load the protobuf descriptor to avoid startup cost
-let ExportTraceServiceRequest: ReturnType<typeof getProtoType> | null = null;
-
-function getProtoType() {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
-  const { $root } = require("../ingestion/otel/proto/root");
-  return $root.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
-}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ExportTraceServiceRequest = ($root as any).opentelemetry.proto.collector.trace.v1
+  .ExportTraceServiceRequest;
 
 export const otelRoutes = new Hono();
 
@@ -46,11 +44,8 @@ otelRoutes.post("/", async (c) => {
       contentType.includes("application/x-protobuf") ||
       contentType.includes("application/protobuf")
     ) {
-      if (!ExportTraceServiceRequest) {
-        ExportTraceServiceRequest = getProtoType();
-      }
-      const decoded = ExportTraceServiceRequest!.decode(buffer);
-      const obj = ExportTraceServiceRequest!.toObject(decoded, {
+      const decoded = ExportTraceServiceRequest.decode(buffer);
+      const obj = ExportTraceServiceRequest.toObject(decoded, {
         longs: String,
         bytes: Array,
         defaults: true,
