@@ -4,7 +4,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { JsonViewer } from "./JsonViewer";
 import { formatDuration, formatTokens, formatCost } from "@/lib/utils";
-import type { Observation, Trace } from "@prisma/client";
+import { Route, Bot, Brackets, CircleDot, Wrench, Link } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import type { Observation, ObservationType, Trace } from "@prisma/client";
+
+function observationIcon(type: ObservationType): {
+  icon: LucideIcon;
+  color: string;
+  label: string;
+} {
+  switch (type) {
+    case "GENERATION":
+      return { icon: Bot, color: "text-blue-500", label: "Generation" };
+    case "SPAN":
+      return { icon: Brackets, color: "text-amber-500", label: "Span" };
+    case "EVENT":
+      return { icon: CircleDot, color: "text-green-500", label: "Event" };
+    case "TOOL":
+      return { icon: Wrench, color: "text-orange-500", label: "Tool" };
+    case "CHAIN":
+      return { icon: Link, color: "text-pink-500", label: "Chain" };
+  }
+}
 
 interface TraceDetailProps {
   type: "trace";
@@ -29,12 +50,7 @@ function TraceDetailPanel({ trace }: { trace: Trace }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-        <Badge
-          variant="outline"
-          className="text-purple-700 dark:text-purple-400 bg-purple-500/10 border-purple-500/20 text-[10px] font-mono"
-        >
-          TRACE
-        </Badge>
+        <Route className="size-4 shrink-0 text-purple-500" />
         <h2 className="text-sm font-medium truncate">{trace.name || trace.id}</h2>
       </div>
       <Tabs defaultValue="io" className="flex-1 flex flex-col">
@@ -94,18 +110,10 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-        <Badge
-          variant="outline"
-          className={`text-[10px] font-mono ${
-            observation.type === "GENERATION"
-              ? "text-blue-700 dark:text-blue-400 bg-blue-500/10 border-blue-500/20"
-              : observation.type === "SPAN"
-                ? "text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/20"
-                : "text-green-700 dark:text-green-400 bg-green-500/10 border-green-500/20"
-          }`}
-        >
-          {observation.type}
-        </Badge>
+        {(() => {
+          const { icon: Icon, color } = observationIcon(observation.type);
+          return <Icon className={`size-4 shrink-0 ${color}`} />;
+        })()}
         <h2 className="text-sm font-medium truncate">{observation.name || observation.id}</h2>
         {observation.model && (
           <Badge variant="secondary" className="text-xs ml-auto">
