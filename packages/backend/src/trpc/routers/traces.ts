@@ -23,7 +23,7 @@ export const tracesRouter = router({
             }
           : undefined,
         include: {
-          _count: { select: { observations: true, scores: true } },
+          _count: { select: { observations: true } },
           observations: {
             select: {
               promptTokens: true,
@@ -65,7 +65,6 @@ export const tracesRouter = router({
           timestamp: trace.timestamp,
           tags: trace.tags,
           observationCount: trace._count.observations,
-          scoreCount: trace._count.scores,
           totalTokens,
           promptTokens,
           completionTokens,
@@ -84,7 +83,6 @@ export const tracesRouter = router({
         observations: {
           orderBy: { startTime: "asc" },
         },
-        scores: true,
       },
     });
 

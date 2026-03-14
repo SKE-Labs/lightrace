@@ -167,6 +167,8 @@ function extractObservationType(attrs: Record<string, unknown>): ObservationType
     if (upper === "GENERATION") return ObservationType.GENERATION;
     if (upper === "EVENT") return ObservationType.EVENT;
     if (upper === "SPAN") return ObservationType.SPAN;
+    if (upper === "TOOL") return ObservationType.TOOL;
+    if (upper === "CHAIN") return ObservationType.CHAIN;
   }
 
   const genAiOp = attrs["gen_ai.operation.name"];

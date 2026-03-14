@@ -4,29 +4,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { JsonViewer } from "./JsonViewer";
 import { formatDuration, formatTokens, formatCost } from "@/lib/utils";
-import type { Observation, Score, Trace } from "@prisma/client";
+import type { Observation, Trace } from "@prisma/client";
 
 interface TraceDetailProps {
   type: "trace";
   trace: Trace;
-  scores: Score[];
 }
 
 interface ObservationDetailProps {
   type: "observation";
-  observation: Observation & { scores: Score[] };
+  observation: Observation;
 }
 
 type Props = TraceDetailProps | ObservationDetailProps;
 
 export function ObservationDetail(props: Props) {
   if (props.type === "trace") {
-    return <TraceDetailPanel trace={props.trace} scores={props.scores} />;
+    return <TraceDetailPanel trace={props.trace} />;
   }
   return <ObservationDetailPanel observation={props.observation} />;
 }
 
-function TraceDetailPanel({ trace, scores }: { trace: Trace; scores: Score[] }) {
+function TraceDetailPanel({ trace }: { trace: Trace }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
@@ -45,9 +44,6 @@ function TraceDetailPanel({ trace, scores }: { trace: Trace; scores: Score[] }) 
           </TabsTrigger>
           <TabsTrigger value="metadata" className="text-xs">
             Metadata
-          </TabsTrigger>
-          <TabsTrigger value="scores" className="text-xs">
-            Scores {scores.length > 0 && `(${scores.length})`}
           </TabsTrigger>
         </TabsList>
         <div className="flex-1 overflow-auto p-4">
@@ -84,20 +80,13 @@ function TraceDetailPanel({ trace, scores }: { trace: Trace; scores: Score[] }) 
               </Section>
             )}
           </TabsContent>
-          <TabsContent value="scores" className="mt-0">
-            <ScoresList scores={scores} />
-          </TabsContent>
         </div>
       </Tabs>
     </div>
   );
 }
 
-function ObservationDetailPanel({
-  observation,
-}: {
-  observation: Observation & { scores: Score[] };
-}) {
+function ObservationDetailPanel({ observation }: { observation: Observation }) {
   const duration = observation.endTime
     ? new Date(observation.endTime).getTime() - new Date(observation.startTime).getTime()
     : null;
@@ -134,9 +123,6 @@ function ObservationDetailPanel({
           </TabsTrigger>
           <TabsTrigger value="usage" className="text-xs">
             Usage
-          </TabsTrigger>
-          <TabsTrigger value="scores" className="text-xs">
-            Scores {observation.scores.length > 0 && `(${observation.scores.length})`}
           </TabsTrigger>
         </TabsList>
         <div className="flex-1 overflow-auto p-4">
@@ -198,9 +184,6 @@ function ObservationDetailPanel({
               </div>
             )}
           </TabsContent>
-          <TabsContent value="scores" className="mt-0">
-            <ScoresList scores={observation.scores} />
-          </TabsContent>
         </div>
       </Tabs>
     </div>
@@ -232,30 +215,6 @@ function UsageCard({ label, value }: { label: string; value: string }) {
     <div className="rounded-md border border-border bg-muted/30 p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="text-lg font-semibold font-mono mt-1">{value}</p>
-    </div>
-  );
-}
-
-function ScoresList({ scores }: { scores: Score[] }) {
-  if (scores.length === 0) {
-    return <p className="text-sm text-muted-foreground py-4">No scores</p>;
-  }
-  return (
-    <div className="space-y-2">
-      {scores.map((score) => (
-        <div
-          key={score.id}
-          className="flex items-center justify-between rounded-md border border-border p-3"
-        >
-          <div>
-            <p className="text-sm font-medium">{score.name}</p>
-            {score.comment && (
-              <p className="text-xs text-muted-foreground mt-0.5">{score.comment}</p>
-            )}
-          </div>
-          <span className="text-lg font-mono font-semibold">{score.value}</span>
-        </div>
-      ))}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Copy, Check } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +12,25 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+    >
+      {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+    </button>
+  );
+}
 
 export default function SettingsPage() {
   const utils = trpc.useUtils();
@@ -58,7 +78,7 @@ export default function SettingsPage() {
               <DialogTrigger render={<Button size="sm" />} onClick={() => setNewKeyResult(null)}>
                 Create Key
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                   <DialogTitle>{newKeyResult ? "API Key Created" : "Create API Key"}</DialogTitle>
                 </DialogHeader>
@@ -83,25 +103,31 @@ export default function SettingsPage() {
                     </p>
                     <div>
                       <label className="text-xs text-muted-foreground">Public Key</label>
-                      <code className="block mt-1 rounded bg-muted p-2 text-xs font-mono">
-                        {newKeyResult.publicKey}
-                      </code>
+                      <div className="flex items-center gap-2 mt-1 rounded bg-muted p-2">
+                        <code className="text-xs font-mono break-all flex-1">
+                          {newKeyResult.publicKey}
+                        </code>
+                        <CopyButton value={newKeyResult.publicKey} />
+                      </div>
                     </div>
                     <div>
                       <label className="text-xs text-muted-foreground">Secret Key</label>
-                      <code className="block mt-1 rounded bg-muted p-2 text-xs font-mono">
-                        {newKeyResult.secretKey}
-                      </code>
+                      <div className="flex items-center gap-2 mt-1 rounded bg-muted p-2">
+                        <code className="text-xs font-mono break-all flex-1">
+                          {newKeyResult.secretKey}
+                        </code>
+                        <CopyButton value={newKeyResult.secretKey} />
+                      </div>
                     </div>
                     <div>
                       <label className="text-xs text-muted-foreground">SDK Usage</label>
-                      <pre className="mt-1 rounded bg-muted p-3 text-xs font-mono overflow-auto">
+                      <pre className="mt-1 rounded bg-muted p-3 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">
                         {`from langfuse import Langfuse
 
 langfuse = Langfuse(
     public_key="${newKeyResult.publicKey}",
     secret_key="${newKeyResult.secretKey}",
-    host="http://localhost:3000"
+    host="http://localhost:3002"
 )`}
                       </pre>
                     </div>

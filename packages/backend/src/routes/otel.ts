@@ -101,7 +101,7 @@ otelRoutes.post("/", async (c) => {
 
     return c.json({}, 200);
   } catch (error) {
-    console.error("[otel] Unexpected error:", error);
+    console.error("[otel] Unexpected error:", error instanceof Error ? error.stack : error);
     return c.json({ error: "Internal server error" }, 500);
   }
 });

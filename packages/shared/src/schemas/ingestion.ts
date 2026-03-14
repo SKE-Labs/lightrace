@@ -67,17 +67,6 @@ const updateGenerationBody = observationBase
 
 const createEventBody = observationBase;
 
-const scoreBody = z.object({
-  id: z.string().optional(),
-  traceId: z.string(),
-  name: z.string(),
-  value: z.number(),
-  observationId: z.string().nullish(),
-  comment: z.string().nullish(),
-  source: z.string().optional(),
-  dataType: z.string().optional(),
-});
-
 export const ingestionEvent = z.discriminatedUnion("type", [
   z.object({
     id: z.string(),
@@ -123,16 +112,37 @@ export const ingestionEvent = z.discriminatedUnion("type", [
   }),
   z.object({
     id: z.string(),
-    type: z.literal("score-create"),
+    type: z.literal("sdk-log"),
     timestamp: z.string(),
-    body: scoreBody,
+    body: z.any(),
     metadata: z.any().optional(),
   }),
   z.object({
     id: z.string(),
-    type: z.literal("sdk-log"),
+    type: z.literal("tool-create"),
     timestamp: z.string(),
-    body: z.any(),
+    body: createSpanBody,
+    metadata: z.any().optional(),
+  }),
+  z.object({
+    id: z.string(),
+    type: z.literal("tool-update"),
+    timestamp: z.string(),
+    body: updateSpanBody,
+    metadata: z.any().optional(),
+  }),
+  z.object({
+    id: z.string(),
+    type: z.literal("chain-create"),
+    timestamp: z.string(),
+    body: createSpanBody,
+    metadata: z.any().optional(),
+  }),
+  z.object({
+    id: z.string(),
+    type: z.literal("chain-update"),
+    timestamp: z.string(),
+    body: updateSpanBody,
     metadata: z.any().optional(),
   }),
   // Accept but handle gracefully — map to SPAN

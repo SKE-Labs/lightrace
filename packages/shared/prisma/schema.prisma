@@ -27,7 +27,6 @@ model Project {
   apiKeys      ApiKey[]
   traces       Trace[]
   observations Observation[]
-  scores       Score[]
 
   @@map("projects")
 }
@@ -65,7 +64,6 @@ model Trace {
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   observations Observation[]
-  scores       Score[]
 
   @@index([projectId, timestamp(sort: Desc)])
   @@index([sessionId])
@@ -77,6 +75,8 @@ enum ObservationType {
   SPAN
   GENERATION
   EVENT
+  TOOL
+  CHAIN
 }
 
 enum ObservationLevel {
@@ -115,31 +115,8 @@ model Observation {
   createdAt           DateTime         @default(now()) @map("created_at")
   updatedAt           DateTime         @default(now()) @updatedAt @map("updated_at")
 
-  scores Score[]
-
   @@index([traceId])
   @@index([projectId, startTime(sort: Desc)])
   @@index([parentObservationId])
   @@map("observations")
-}
-
-model Score {
-  id            String       @id @default(cuid())
-  traceId       String       @map("trace_id")
-  trace         Trace        @relation(fields: [traceId], references: [id], onDelete: Cascade)
-  observationId String?      @map("observation_id")
-  observation   Observation? @relation(fields: [observationId], references: [id], onDelete: SetNull)
-  projectId     String       @map("project_id")
-  project       Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  name          String
-  value         Float
-  source        String       @default("API")
-  comment       String?
-  createdAt     DateTime     @default(now()) @map("created_at")
-  updatedAt     DateTime     @default(now()) @updatedAt @map("updated_at")
-
-  @@index([traceId])
-  @@index([observationId])
-  @@index([projectId, name])
-  @@map("scores")
 }

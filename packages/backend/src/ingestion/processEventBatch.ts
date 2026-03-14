@@ -217,37 +217,6 @@ async function processObservation(
   }
 }
 
-async function processScoreCreate(
-  event: IngestionEvent & { type: "score-create" },
-  projectId: string,
-) {
-  const body = event.body;
-  const scoreId = body.id ?? event.id;
-
-  await ensureTraceExists(body.traceId, projectId);
-
-  await db.score.upsert({
-    where: { id: scoreId },
-    create: {
-      id: scoreId,
-      traceId: body.traceId,
-      projectId,
-      name: body.name,
-      value: body.value,
-      observationId: body.observationId ?? null,
-      comment: body.comment ?? null,
-      source: body.source ?? "API",
-    },
-    update: {
-      name: body.name,
-      value: body.value,
-      observationId: body.observationId ?? undefined,
-      comment: body.comment ?? undefined,
-      source: body.source ?? undefined,
-    },
-  });
-}
-
 export async function processEventBatch(
   rawEvents: unknown[],
   projectId: string,
@@ -293,14 +262,23 @@ export async function processEventBatch(
         case "event-create":
           await processObservation(event, projectId, ObservationType.EVENT, false);
           break;
+        case "tool-create":
+          await processObservation(event, projectId, ObservationType.TOOL, false);
+          break;
+        case "tool-update":
+          await processObservation(event, projectId, ObservationType.TOOL, true);
+          break;
+        case "chain-create":
+          await processObservation(event, projectId, ObservationType.CHAIN, false);
+          break;
+        case "chain-update":
+          await processObservation(event, projectId, ObservationType.CHAIN, true);
+          break;
         case "observation-create":
           await processObservation(event, projectId, ObservationType.SPAN, false);
           break;
         case "observation-update":
           await processObservation(event, projectId, ObservationType.SPAN, true);
-          break;
-        case "score-create":
-          await processScoreCreate(event, projectId);
           break;
         case "sdk-log":
           // Just acknowledge

@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { cn, formatDuration } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
+import { Route, Bot, Brackets, CircleDot, Wrench, Link } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import type { Observation, ObservationType } from "@prisma/client";
 
 interface TraceTreeProps {
@@ -41,25 +43,47 @@ function buildTree(observations: Observation[]): TreeNode[] {
   return roots;
 }
 
-function typeIcon(type: ObservationType): { label: string; color: string; barColor: string } {
+function typeIcon(type: ObservationType): {
+  icon: LucideIcon;
+  color: string;
+  barColor: string;
+  label: string;
+} {
   switch (type) {
     case "GENERATION":
       return {
-        label: "GEN",
-        color: "text-blue-700 dark:text-blue-400 bg-blue-500/10 border-blue-500/20",
+        icon: Bot,
+        color: "text-blue-500",
         barColor: "bg-blue-500/40",
+        label: "Generation",
       };
     case "SPAN":
       return {
-        label: "SPAN",
-        color: "text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/20",
+        icon: Brackets,
+        color: "text-amber-500",
         barColor: "bg-amber-500/40",
+        label: "Span",
       };
     case "EVENT":
       return {
-        label: "EVT",
-        color: "text-green-700 dark:text-green-400 bg-green-500/10 border-green-500/20",
+        icon: CircleDot,
+        color: "text-green-500",
         barColor: "bg-green-500/40",
+        label: "Event",
+      };
+    case "TOOL":
+      return {
+        icon: Wrench,
+        color: "text-orange-500",
+        barColor: "bg-orange-500/40",
+        label: "Tool",
+      };
+    case "CHAIN":
+      return {
+        icon: Link,
+        color: "text-pink-500",
+        barColor: "bg-pink-500/40",
+        label: "Chain",
       };
   }
 }
@@ -81,7 +105,7 @@ function TreeNodeRow({
 }) {
   const [expanded, setExpanded] = useState(true);
   const obs = node.observation;
-  const { label, color, barColor } = typeIcon(obs.type);
+  const { icon: Icon, color, barColor, label } = typeIcon(obs.type);
   const duration = obs.endTime
     ? new Date(obs.endTime).getTime() - new Date(obs.startTime).getTime()
     : 0;
@@ -117,9 +141,12 @@ function TreeNodeRow({
         )}
         {node.children.length === 0 && <span className="w-4" />}
 
-        <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 font-mono border", color)}>
-          {label}
-        </Badge>
+        <Tooltip>
+          <TooltipTrigger className="inline-flex">
+            <Icon className={cn("size-4 shrink-0", color)} />
+          </TooltipTrigger>
+          <TooltipContent>{label}</TooltipContent>
+        </Tooltip>
 
         <span className="text-sm truncate flex-shrink-0 max-w-[180px]">
           {obs.name || obs.id.slice(0, 8)}
@@ -177,48 +204,50 @@ export function TraceTree({ trace, observations, selectedId, onSelect }: TraceTr
   const traceDuration = traceEndTime - traceStartTime;
 
   return (
-    <div className="flex flex-col">
-      {/* Trace root node */}
-      <div
-        className={cn(
-          "flex items-center gap-2 px-2 py-2 cursor-pointer border-l-2 transition-colors",
-          selectedId === trace.id
-            ? "bg-accent border-l-primary"
-            : "border-l-transparent hover:bg-accent/30",
-        )}
-        onClick={() => onSelect(trace.id, true)}
-      >
-        <span className="w-4" />
-        <Badge
-          variant="outline"
-          className="text-[10px] px-1.5 py-0 font-mono border text-purple-700 dark:text-purple-400 bg-purple-500/10 border-purple-500/20"
+    <TooltipProvider>
+      <div className="flex flex-col">
+        {/* Trace root node */}
+        <div
+          className={cn(
+            "flex items-center gap-2 px-2 py-2 cursor-pointer border-l-2 transition-colors",
+            selectedId === trace.id
+              ? "bg-accent border-l-primary"
+              : "border-l-transparent hover:bg-accent/30",
+          )}
+          onClick={() => onSelect(trace.id, true)}
         >
-          TRACE
-        </Badge>
-        <span className="text-sm font-medium truncate">{trace.name || trace.id.slice(0, 8)}</span>
-        {traceDuration > 0 && (
-          <span className="ml-auto text-xs text-muted-foreground font-mono">
-            {formatDuration(traceDuration)}
-          </span>
+          <span className="w-4" />
+          <Tooltip>
+            <TooltipTrigger className="inline-flex">
+              <Route className="size-4 shrink-0 text-purple-500" />
+            </TooltipTrigger>
+            <TooltipContent>Trace</TooltipContent>
+          </Tooltip>
+          <span className="text-sm font-medium truncate">{trace.name || trace.id.slice(0, 8)}</span>
+          {traceDuration > 0 && (
+            <span className="ml-auto text-xs text-muted-foreground font-mono">
+              {formatDuration(traceDuration)}
+            </span>
+          )}
+        </div>
+
+        {/* Observation tree */}
+        {tree.map((node) => (
+          <TreeNodeRow
+            key={node.observation.id}
+            node={node}
+            depth={1}
+            selectedId={selectedId}
+            onSelect={onSelect}
+            traceStartTime={traceStartTime}
+            traceDuration={traceDuration}
+          />
+        ))}
+
+        {observations.length === 0 && (
+          <div className="px-6 py-8 text-center text-sm text-muted-foreground">No observations</div>
         )}
       </div>
-
-      {/* Observation tree */}
-      {tree.map((node) => (
-        <TreeNodeRow
-          key={node.observation.id}
-          node={node}
-          depth={1}
-          selectedId={selectedId}
-          onSelect={onSelect}
-          traceStartTime={traceStartTime}
-          traceDuration={traceDuration}
-        />
-      ))}
-
-      {observations.length === 0 && (
-        <div className="px-6 py-8 text-center text-sm text-muted-foreground">No observations</div>
-      )}
-    </div>
+    </TooltipProvider>
   );
 }

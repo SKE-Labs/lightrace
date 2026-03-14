@@ -71,17 +71,9 @@ export default function TraceDetailPage({ params }: { params: Promise<{ traceId:
               Select a trace or observation to view details
             </div>
           )}
-          {selected?.isTrace && (
-            <ObservationDetail type="trace" trace={trace} scores={trace.scores} />
-          )}
+          {selected?.isTrace && <ObservationDetail type="trace" trace={trace} />}
           {selectedObservation && (
-            <ObservationDetail
-              type="observation"
-              observation={{
-                ...selectedObservation,
-                scores: trace.scores.filter((s) => s.observationId === selectedObservation.id),
-              }}
-            />
+            <ObservationDetail type="observation" observation={selectedObservation} />
           )}
         </div>
       </div>
