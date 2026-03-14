@@ -32,7 +32,7 @@ function TraceDetailPanel({ trace, scores }: { trace: Trace; scores: Score[] }) 
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <Badge
           variant="outline"
-          className="text-purple-400 bg-purple-400/10 border-purple-400/20 text-[10px] font-mono"
+          className="text-purple-700 dark:text-purple-400 bg-purple-500/10 border-purple-500/20 text-[10px] font-mono"
         >
           TRACE
         </Badge>
@@ -109,10 +109,10 @@ function ObservationDetailPanel({
           variant="outline"
           className={`text-[10px] font-mono ${
             observation.type === "GENERATION"
-              ? "text-blue-400 bg-blue-400/10 border-blue-400/20"
+              ? "text-blue-700 dark:text-blue-400 bg-blue-500/10 border-blue-500/20"
               : observation.type === "SPAN"
-                ? "text-amber-400 bg-amber-400/10 border-amber-400/20"
-                : "text-green-400 bg-green-400/10 border-green-400/20"
+                ? "text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/20"
+                : "text-green-700 dark:text-green-400 bg-green-500/10 border-green-500/20"
           }`}
         >
           {observation.type}

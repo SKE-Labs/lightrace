@@ -78,7 +78,7 @@ export default function SettingsPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <p className="text-sm text-amber-400">
+                    <p className="text-sm text-amber-600 dark:text-amber-400">
                       Save these keys now. The secret key will not be shown again.
                     </p>
                     <div>

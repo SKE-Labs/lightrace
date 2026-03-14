@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Lightrace is a lightweight, open-source LLM tracing tool for local development. It is compatible with the Langfuse Python/JS SDKs and provides a simple UI for viewing traces, observations, and token usage.
+LightRace is a lightweight, open-source LLM tracing tool for local development. It is compatible with the Langfuse Python/JS SDKs and provides a simple UI for viewing traces, observations, and token usage.
 
 ## Architecture
 

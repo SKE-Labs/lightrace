@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const navItems = [
   {
@@ -19,14 +21,14 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { resolvedTheme } = useTheme();
+  const logoSrc = resolvedTheme === "dark" ? "/lr_white.svg" : "/lr_primary.svg";
 
   return (
     <aside className="flex h-screen w-56 flex-col border-r border-border bg-card">
       <div className="flex h-14 items-center gap-2 px-4">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold">
-          LT
-        </div>
-        <span className="text-sm font-semibold tracking-tight">Light Race</span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={logoSrc} alt="LightRace" className="h-7 w-auto" />
       </div>
       <nav className="flex-1 space-y-1 px-2 py-3">
         {navItems.map((item) => {
@@ -38,8 +40,8 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
                 isActive
-                  ? "bg-accent text-accent-foreground font-medium"
-                  : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground",
+                  ? "bg-accent/15 text-accent-foreground font-medium"
+                  : "text-muted-foreground hover:bg-accent/10 hover:text-accent-foreground",
               )}
             >
               <svg
@@ -58,7 +60,10 @@ export function Sidebar() {
         })}
       </nav>
       <div className="border-t border-border px-4 py-3">
-        <p className="text-xs text-muted-foreground">Demo Project</p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">Demo Project</p>
+          <ThemeToggle />
+        </div>
       </div>
     </aside>
   );

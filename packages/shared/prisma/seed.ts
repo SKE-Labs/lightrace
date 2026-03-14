@@ -47,7 +47,7 @@ async function main() {
   });
   console.log(`API Key: ${publicKey} / ${secretKey}`);
 
-  console.log("\n--- Lightrace seeded ---");
+  console.log("\n--- LightRace seeded ---");
   console.log(`Login: demo@lightrace.dev / password`);
   console.log(`SDK:   public_key=${publicKey}  secret_key=${secretKey}`);
 }

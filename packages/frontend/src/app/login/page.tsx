@@ -3,11 +3,14 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { resolvedTheme } = useTheme();
+  const logoSrc = resolvedTheme === "dark" ? "/lr_white.svg" : "/lr_primary.svg";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -37,9 +40,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
-          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold">
-            LT
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={logoSrc} alt="LightRace" className="mx-auto h-12 w-auto" />
           <h1 className="mt-4 text-xl font-semibold">LightRace</h1>
           <p className="mt-1 text-sm text-muted-foreground">Sign in to view your traces</p>
         </div>

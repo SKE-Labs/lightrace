@@ -1,6 +1,6 @@
-# Contributing to Lightrace
+# Contributing to LightRace
 
-Thank you for your interest in contributing to Lightrace! This guide will help you get started.
+Thank you for your interest in contributing to LightRace! This guide will help you get started.
 
 ## Development Setup
 
@@ -43,6 +43,25 @@ pnpm dev
 
 ### SDK Testing
 
+**Langfuse v4** (env vars):
+
+```bash
+export LANGFUSE_PUBLIC_KEY=pk-lt-demo
+export LANGFUSE_SECRET_KEY=sk-lt-demo
+export LANGFUSE_HOST=http://localhost:3002
+```
+
+```python
+from langfuse import Langfuse
+
+client = Langfuse()
+with client.start_as_current_observation(name="test-trace"):
+    pass
+client.flush()
+```
+
+**Langfuse v3** (constructor args):
+
 ```python
 from langfuse import Langfuse
 
@@ -77,16 +96,17 @@ lightrace/
 │   │       ├── trpc/              # tRPC router, context, procedures
 │   │       │   ├── context.ts     # Context creation + auth middleware
 │   │       │   ├── router.ts      # Root router (AppRouter)
-│   │       │   └── routers/       # traces, observations, settings
+│   │       │   └── routers/       # traces, observations, settings, realtime
 │   │       ├── routes/            # REST routes (ingestion, OTel)
 │   │       ├── ingestion/         # Event processing + OTel spans
+│   │       ├── realtime/          # Redis Pub/Sub + event emitter
 │   │       └── middleware/        # Internal auth validation
 │   │
 │   └── frontend/                  # @lightrace/frontend
 │       └── src/
 │           ├── app/               # Next.js 15 App Router pages
 │           │   ├── (dashboard)/   # Authenticated pages (traces, settings)
-│           │   ├── api/           # tRPC proxy + Auth.js routes
+│           │   ├── api/           # tRPC proxy, Auth.js routes, WS auth
 │           │   └── login/         # Login page
 │           ├── components/
 │           │   ├── ui/            # shadcn/ui components
@@ -94,7 +114,7 @@ lightrace/
 │           │   └── trace/         # TraceList, TraceTree, ObservationDetail, JsonViewer
 │           ├── server/
 │           │   └── auth.ts        # Auth.js v5 config
-│           └── lib/               # tRPC client, utilities
+│           └── lib/               # tRPC client, utilities, realtime hooks
 │
 ├── docker-compose.yml             # PostgreSQL + Redis
 ├── turbo.json                     # Turborepo task config
@@ -182,10 +202,21 @@ pnpm vitest run packages/shared/src/schemas/ingestion.test.ts
 
 ### SDK Ingestion Flow
 
-1. Langfuse SDK sends `POST /api/public/ingestion` to the backend directly (port 3002)
+Two ingestion paths are supported:
+
+**Langfuse v3** (REST):
+
+1. SDK sends `POST /api/public/ingestion` to the backend (port 3002)
 2. Backend authenticates via Basic Auth (API key)
 3. Events are processed synchronously and written to PostgreSQL
-4. Affected trace IDs are published to Redis Pub/Sub (`trace:{projectId}` channel)
+
+**Langfuse v4** (OpenTelemetry):
+
+1. SDK sends `POST /api/public/otel/v1/traces` to the backend (port 3002)
+2. Backend authenticates via Basic Auth (API key)
+3. Protobuf or JSON payload is decoded, spans are mapped to traces/observations
+
+Both paths publish affected trace IDs to Redis Pub/Sub (`trace:{projectId}` channel) after processing.
 
 ### Real-time Update Flow
 

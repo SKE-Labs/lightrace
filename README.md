@@ -1,10 +1,14 @@
-# Lightrace
+<p align="center">
+  <img src="packages/frontend/public/white_transparent.png" alt="LightRace" width="320" />
+</p>
 
-Lightweight, open-source LLM tracing tool for local development. Drop-in compatible with the [Langfuse](https://langfuse.com) Python/JS SDKs.
+<h1 align="center">LightRace</h1>
+
+<p align="center">Lightweight, open-source LLM tracing tool for local development. Drop-in compatible with the <a href="https://langfuse.com">Langfuse</a> Python/JS SDKs.</p>
 
 ## Features
 
-- Langfuse SDK compatible ingestion (`POST /api/public/ingestion`)
+- Compatible with Langfuse v3 (`POST /api/public/ingestion`) and v4 (OpenTelemetry)
 - OpenTelemetry trace ingestion (protobuf + JSON)
 - Real-time trace updates via WebSocket (Redis Pub/Sub)
 - Trace and observation viewer with token usage breakdown
@@ -12,7 +16,7 @@ Lightweight, open-source LLM tracing tool for local development. Drop-in compati
 
 ## Architecture
 
-Lightrace is a monorepo with three packages:
+LightRace is a monorepo with three packages:
 
 ```
 packages/
@@ -64,10 +68,25 @@ Open [http://localhost:3001](http://localhost:3001) and log in with the demo cre
 
 ### SDK Configuration
 
-Point any Langfuse SDK at the backend's ingestion endpoint:
+Point any Langfuse SDK at the backend (port 3002):
+
+**Langfuse v4 (Python)** — uses environment variables:
+
+```bash
+export LANGFUSE_PUBLIC_KEY=pk-lt-demo
+export LANGFUSE_SECRET_KEY=sk-lt-demo
+export LANGFUSE_HOST=http://localhost:3002
+```
 
 ```python
-# Python
+from langfuse import Langfuse
+
+client = Langfuse()  # reads from env vars
+```
+
+**Langfuse v3 (Python)** — uses constructor args:
+
+```python
 from langfuse import Langfuse
 
 langfuse = Langfuse(
@@ -77,8 +96,9 @@ langfuse = Langfuse(
 )
 ```
 
+**Langfuse JS/TS:**
+
 ```typescript
-// TypeScript
 import Langfuse from "langfuse";
 
 const langfuse = new Langfuse({

@@ -31,10 +31,16 @@ All notable changes to this project will be documented in this file.
 - **Health check** endpoint at `GET /health` on the backend
 - `BACKEND_URL`, `INTERNAL_SECRET`, `REDIS_URL`, `PORT`, `WS_PORT` environment variables
 
+### Fixed
+
+- **Langfuse v4 compatibility**: OTel protobuf import converted from CommonJS `require()` to ESM `import` — fixes `ReferenceError: require is not defined` in the OTel ingestion route
+- **tRPC proxy**: Frontend `/api/trpc` proxy now reads the full response body before forwarding — fixes `Unexpected end of JSON input` errors from streamed responses
+
 ### Infrastructure
 
 - docker-compose now includes Redis 7 alongside PostgreSQL 16
 - Prisma schema and migrations moved to `packages/shared/prisma/`
+- `.env` symlinks from packages to workspace root for Prisma and runtime access
 
 ## [0.1.0] - 2026-03-08
 

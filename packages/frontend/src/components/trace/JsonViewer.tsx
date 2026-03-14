@@ -54,15 +54,17 @@ function JsonNode({
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded && depth < 3);
 
-  if (data === null) return <span className="text-orange-400">null</span>;
+  if (data === null) return <span className="text-orange-600 dark:text-orange-400">null</span>;
   if (data === undefined) return <span className="text-muted-foreground">undefined</span>;
-  if (typeof data === "boolean") return <span className="text-amber-400">{data.toString()}</span>;
-  if (typeof data === "number") return <span className="text-blue-400">{data}</span>;
+  if (typeof data === "boolean")
+    return <span className="text-amber-600 dark:text-amber-400">{data.toString()}</span>;
+  if (typeof data === "number")
+    return <span className="text-blue-600 dark:text-blue-400">{data}</span>;
   if (typeof data === "string") {
     if (data.length > 500) {
       return <TruncatedString value={data} />;
     }
-    return <span className="text-green-400">&quot;{data}&quot;</span>;
+    return <span className="text-green-700 dark:text-green-400">&quot;{data}&quot;</span>;
   }
 
   if (Array.isArray(data)) {
@@ -106,7 +108,7 @@ function JsonNode({
           <div className="ml-4 border-l border-border/50 pl-2">
             {entries.map(([key, value]) => (
               <div key={key} className="py-0.5">
-                <span className="text-purple-400">{key}</span>
+                <span className="text-purple-700 dark:text-purple-400">{key}</span>
                 <span className="text-muted-foreground">: </span>
                 <JsonNode data={value} depth={depth + 1} defaultExpanded={defaultExpanded} />
               </div>
@@ -125,10 +127,13 @@ function TruncatedString({ value }: { value: string }) {
   const display = expanded ? value : value.slice(0, 200);
 
   return (
-    <span className="text-green-400">
+    <span className="text-green-700 dark:text-green-400">
       &quot;{display}
       {!expanded && value.length > 200 && (
-        <button onClick={() => setExpanded(true)} className="ml-1 text-blue-400 hover:underline">
+        <button
+          onClick={() => setExpanded(true)}
+          className="ml-1 text-blue-600 dark:text-blue-400 hover:underline"
+        >
           ...({value.length} chars)
         </button>
       )}

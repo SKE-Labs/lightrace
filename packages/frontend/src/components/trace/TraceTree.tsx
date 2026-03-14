@@ -41,14 +41,26 @@ function buildTree(observations: Observation[]): TreeNode[] {
   return roots;
 }
 
-function typeIcon(type: ObservationType): { label: string; color: string } {
+function typeIcon(type: ObservationType): { label: string; color: string; barColor: string } {
   switch (type) {
     case "GENERATION":
-      return { label: "GEN", color: "text-blue-400 bg-blue-400/10 border-blue-400/20" };
+      return {
+        label: "GEN",
+        color: "text-blue-700 dark:text-blue-400 bg-blue-500/10 border-blue-500/20",
+        barColor: "bg-blue-500/40",
+      };
     case "SPAN":
-      return { label: "SPAN", color: "text-amber-400 bg-amber-400/10 border-amber-400/20" };
+      return {
+        label: "SPAN",
+        color: "text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/20",
+        barColor: "bg-amber-500/40",
+      };
     case "EVENT":
-      return { label: "EVT", color: "text-green-400 bg-green-400/10 border-green-400/20" };
+      return {
+        label: "EVT",
+        color: "text-green-700 dark:text-green-400 bg-green-500/10 border-green-500/20",
+        barColor: "bg-green-500/40",
+      };
   }
 }
 
@@ -69,7 +81,7 @@ function TreeNodeRow({
 }) {
   const [expanded, setExpanded] = useState(true);
   const obs = node.observation;
-  const { label, color } = typeIcon(obs.type);
+  const { label, color, barColor } = typeIcon(obs.type);
   const duration = obs.endTime
     ? new Date(obs.endTime).getTime() - new Date(obs.startTime).getTime()
     : 0;
@@ -116,14 +128,7 @@ function TreeNodeRow({
         {/* Latency bar */}
         <div className="flex-1 mx-2 h-3 relative bg-muted/30 rounded-sm overflow-hidden min-w-[60px]">
           <div
-            className={cn(
-              "absolute h-full rounded-sm",
-              obs.type === "GENERATION"
-                ? "bg-blue-400/40"
-                : obs.type === "SPAN"
-                  ? "bg-amber-400/40"
-                  : "bg-green-400/40",
-            )}
+            className={cn("absolute h-full rounded-sm", barColor)}
             style={{
               left: `${Math.min(offsetPercent, 100)}%`,
               width: `${Math.max(Math.min(widthPercent, 100 - offsetPercent), 0.5)}%`,
@@ -186,7 +191,7 @@ export function TraceTree({ trace, observations, selectedId, onSelect }: TraceTr
         <span className="w-4" />
         <Badge
           variant="outline"
-          className="text-[10px] px-1.5 py-0 font-mono border text-purple-400 bg-purple-400/10 border-purple-400/20"
+          className="text-[10px] px-1.5 py-0 font-mono border text-purple-700 dark:text-purple-400 bg-purple-500/10 border-purple-500/20"
         >
           TRACE
         </Badge>
