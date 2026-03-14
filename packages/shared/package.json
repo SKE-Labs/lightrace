@@ -1,0 +1,37 @@
+{
+  "name": "@lightrace/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./db": "./src/db.ts",
+    "./schemas/ingestion": "./src/schemas/ingestion.ts",
+    "./auth/apiAuth": "./src/auth/apiAuth.ts",
+    "./utils": "./src/utils.ts",
+    "./redis": "./src/redis.ts"
+  },
+  "scripts": {
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:reset": "prisma migrate reset",
+    "db:studio": "prisma studio",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.2",
+    "bcryptjs": "^3.0.3",
+    "ioredis": "^5.6.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^3.0.0",
+    "prisma": "^6.19.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}
