@@ -36,7 +36,7 @@ function TraceDetailPanel({ trace }: { trace: Trace }) {
     <TooltipProvider>
       <div className="flex h-full flex-col">
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-          <Route className="size-4 shrink-0 text-purple-500" />
+          <Route className="size-4 shrink-0 text-purple-600 dark:text-purple-500" />
           <h2 className="text-sm font-medium truncate">{trace.name || trace.id}</h2>
         </div>
         <Tabs defaultValue="io" className="flex-1 flex flex-col min-h-0">
@@ -106,14 +106,14 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
             </Badge>
           )}
           {observation.level === "WARNING" && (
-            <Badge className="text-xs ml-auto bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30">
+            <Badge className="text-xs ml-auto bg-yellow-500/15 text-yellow-800 dark:text-yellow-400 border-yellow-500/30">
               WARNING
             </Badge>
           )}
         </div>
 
         {/* Header row 2: metric badges */}
-        <div className="flex flex-wrap items-center gap-1.5 px-4 py-2 border-b border-border/50">
+        <div className="flex flex-wrap items-center gap-1.5 px-4 py-2 border-b border-border">
           {duration !== null && duration > 0 && (
             <Badge variant="outline" className="text-xs font-mono gap-1">
               <Clock className="size-3" />
@@ -307,12 +307,12 @@ function Section({
             viewMode === "formatted" ? (
               <FormattedView data={data} />
             ) : (
-              <div className="rounded-md border border-border bg-muted/30 p-3">
+              <div className="rounded-md border border-border bg-muted/50 p-3">
                 <JsonViewer data={data} />
               </div>
             )
           ) : (
-            <div className="rounded-md border border-border bg-muted/30 p-3">{children}</div>
+            <div className="rounded-md border border-border bg-muted/50 p-3">{children}</div>
           )}
         </>
       )}

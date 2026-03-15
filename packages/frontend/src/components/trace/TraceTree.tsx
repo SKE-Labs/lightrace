@@ -212,7 +212,7 @@ export function TraceTree({ trace, observations, selectedId, onSelect }: TraceTr
           <span className="w-5 shrink-0" />
           <Tooltip>
             <TooltipTrigger className="inline-flex">
-              <Route className="size-4 shrink-0 text-purple-500" />
+              <Route className="size-4 shrink-0 text-purple-600 dark:text-purple-500" />
             </TooltipTrigger>
             <TooltipContent>Trace</TooltipContent>
           </Tooltip>

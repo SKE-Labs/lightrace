@@ -378,8 +378,11 @@ function ChatMessageView({
         <div className="mt-2 ml-5 space-y-2">
           {/* Thinking/reasoning */}
           {extracted.thinkings.length > 0 && (
-            <div className="text-sm italic text-muted-foreground whitespace-pre-wrap break-words leading-relaxed pl-2 border-l-2 border-border">
-              {extracted.thinkings.join("\n\n")}
+            <div className="pl-2 border-l-2 border-border">
+              <MemoizedMarkdown
+                text={extracted.thinkings.join("\n\n")}
+                className="text-sm italic text-muted-foreground"
+              />
             </div>
           )}
 
@@ -499,12 +502,12 @@ function isExpandable(value: unknown): value is object {
 function ValueCell({ value }: { value: unknown }) {
   const [expanded, setExpanded] = useState(false);
 
-  if (value === null) return <span className="text-orange-600 dark:text-orange-400">null</span>;
+  if (value === null) return <span className="text-orange-700 dark:text-orange-400">null</span>;
   if (value === undefined) return <span className="text-muted-foreground">undefined</span>;
   if (typeof value === "boolean")
-    return <span className="text-amber-600 dark:text-amber-400">{value.toString()}</span>;
+    return <span className="text-amber-700 dark:text-amber-400">{value.toString()}</span>;
   if (typeof value === "number")
-    return <span className="text-blue-600 dark:text-blue-400">{value}</span>;
+    return <span className="text-blue-700 dark:text-blue-400">{value}</span>;
 
   const str = typeof value === "string" ? value : JSON.stringify(value);
   if (str.length <= 200) {
@@ -516,7 +519,7 @@ function ValueCell({ value }: { value: unknown }) {
       {expanded ? str : str.slice(0, 200)}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="ml-1 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+        className="ml-1 text-xs text-blue-700 dark:text-blue-400 hover:underline"
       >
         {expanded ? "show less" : `...${str.length - 200} more`}
       </button>
