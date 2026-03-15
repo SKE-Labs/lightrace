@@ -15,11 +15,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@auth/prisma-adapter": "^2.11.1",
     "@base-ui/react": "^1.2.0",
     "@lightrace/backend": "workspace:*",
     "@lightrace/shared": "workspace:*",
-    "@prisma/client": "^6.19.2",
+    "@prisma/client": "^7.5.0",
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-query": "^5.90.21",
     "@trpc/client": "^11.12.0",
