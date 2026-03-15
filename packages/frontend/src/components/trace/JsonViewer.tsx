@@ -6,10 +6,9 @@ import { cn } from "@/lib/utils";
 interface JsonViewerProps {
   data: unknown;
   defaultExpanded?: boolean;
-  maxHeight?: string;
 }
 
-export function JsonViewer({ data, defaultExpanded = true, maxHeight = "400px" }: JsonViewerProps) {
+export function JsonViewer({ data, defaultExpanded = true }: JsonViewerProps) {
   if (data === null || data === undefined) {
     return <span className="text-muted-foreground italic">null</span>;
   }
@@ -19,17 +18,14 @@ export function JsonViewer({ data, defaultExpanded = true, maxHeight = "400px" }
     try {
       const parsed = JSON.parse(data);
       return (
-        <div className="overflow-auto font-mono text-xs" style={{ maxHeight }}>
+        <div className="overflow-auto font-mono text-xs">
           <JsonNode data={parsed} depth={0} defaultExpanded={defaultExpanded} />
         </div>
       );
     } catch {
       // Render as string with wrapping
       return (
-        <div
-          className="overflow-auto whitespace-pre-wrap font-mono text-xs text-foreground"
-          style={{ maxHeight }}
-        >
+        <div className="overflow-auto whitespace-pre-wrap font-mono text-xs text-foreground">
           {data}
         </div>
       );
@@ -37,7 +33,7 @@ export function JsonViewer({ data, defaultExpanded = true, maxHeight = "400px" }
   }
 
   return (
-    <div className="overflow-auto font-mono text-xs" style={{ maxHeight }}>
+    <div className="overflow-auto font-mono text-xs">
       <JsonNode data={data} depth={0} defaultExpanded={defaultExpanded} />
     </div>
   );

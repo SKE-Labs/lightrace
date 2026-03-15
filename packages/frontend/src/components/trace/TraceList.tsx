@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { useRealtimeTraceUpdates } from "@/lib/use-realtime";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { formatDuration, formatTokens, formatCost } from "@/lib/utils";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { formatDuration, formatTokens, formatCost, formatRelativeTime } from "@/lib/utils";
 
 export function TraceList() {
   const router = useRouter();
@@ -21,115 +22,163 @@ export function TraceList() {
       { getNextPageParam: (lastPage) => lastPage.nextCursor, retry: false, refetchInterval: 30000 },
     );
 
-  const traces = data?.pages.flatMap((p) => p.items) ?? [];
+  const traces = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data]);
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-border px-6 py-4">
-        <h1 className="text-lg font-semibold">Traces</h1>
-        <Input
-          placeholder="Search by name..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-64"
-        />
-      </div>
-      <div className="flex-1 overflow-auto">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-card border-b border-border">
-            <tr className="text-muted-foreground">
-              <th className="px-6 py-3 text-left font-medium">Name</th>
-              <th className="px-4 py-3 text-left font-medium">Timestamp</th>
-              <th className="px-4 py-3 text-right font-medium">Latency</th>
-              <th className="px-4 py-3 text-right font-medium">Tokens</th>
-              <th className="px-4 py-3 text-right font-medium">Cost</th>
-              <th className="px-4 py-3 text-right font-medium">Obs</th>
-              <th className="px-4 py-3 text-left font-medium">Tags</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading && !isError && (
-              <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
-                  Loading...
-                </td>
+    <TooltipProvider>
+      <div className="flex h-full flex-col">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <h1 className="text-lg font-semibold">Traces</h1>
+          <Input
+            placeholder="Search by name..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-64"
+          />
+        </div>
+        <div className="flex-1 overflow-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-card border-b border-border">
+              <tr className="text-muted-foreground">
+                <th className="px-6 py-3 text-left font-medium">Name</th>
+                <th className="px-4 py-3 text-left font-medium">Timestamp</th>
+                <th className="px-4 py-3 text-right font-medium">Latency</th>
+                <th className="px-4 py-3 text-right font-medium">Tokens</th>
+                <th className="px-4 py-3 text-right font-medium">Cost</th>
+                <th className="px-4 py-3 text-right font-medium">Obs</th>
+                <th className="px-4 py-3 text-left font-medium">Tags</th>
               </tr>
-            )}
-            {isError && (
-              <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
-                  {error?.message?.includes("UNAUTHORIZED") ? (
-                    <span>
-                      Please{" "}
-                      <a href="/login" className="text-primary hover:underline">
-                        sign in
-                      </a>{" "}
-                      to view traces.
-                    </span>
-                  ) : (
-                    <span>Failed to load traces: {error?.message}</span>
-                  )}
-                </td>
-              </tr>
-            )}
-            {!isLoading && traces.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
-                  No traces yet. Send traces using the Langfuse SDK.
-                </td>
-              </tr>
-            )}
-            {traces.map((trace) => (
-              <tr
-                key={trace.id}
-                className="border-b border-border/50 hover:bg-accent/30 transition-colors cursor-pointer"
-                onClick={() => router.push(`/traces/${trace.id}`)}
+            </thead>
+            <tbody>
+              {isLoading &&
+                !isError &&
+                Array.from({ length: 5 }, (_, i) => (
+                  <tr key={i} className="border-b border-border/50">
+                    <td className="px-6 py-3">
+                      <div className="h-4 w-32 bg-muted animate-pulse rounded" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="h-4 w-12 bg-muted animate-pulse rounded ml-auto" />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="h-4 w-10 bg-muted animate-pulse rounded ml-auto" />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="h-4 w-14 bg-muted animate-pulse rounded ml-auto" />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="h-4 w-6 bg-muted animate-pulse rounded ml-auto" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="h-4 w-20 bg-muted animate-pulse rounded" />
+                    </td>
+                  </tr>
+                ))}
+              {isError && (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
+                    {error?.message?.includes("UNAUTHORIZED") ? (
+                      <span>
+                        Please{" "}
+                        <a href="/login" className="text-primary hover:underline">
+                          sign in
+                        </a>{" "}
+                        to view traces.
+                      </span>
+                    ) : (
+                      <span>Failed to load traces: {error?.message}</span>
+                    )}
+                  </td>
+                </tr>
+              )}
+              {!isLoading && traces.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
+                    No traces yet. Send traces using the Langfuse SDK.
+                  </td>
+                </tr>
+              )}
+              {traces.map((trace) => (
+                <tr
+                  key={trace.id}
+                  className="border-b border-border/50 hover:bg-accent/30 transition-colors cursor-pointer"
+                  onClick={() => router.push(`/traces/${trace.id}`)}
+                >
+                  <td className="px-6 py-3">
+                    <div className="flex items-center gap-2">
+                      {trace.hasError && (
+                        <span
+                          className="size-2 rounded-full bg-red-500 shrink-0"
+                          title="Has errors"
+                        />
+                      )}
+                      {trace.hasWarning && (
+                        <span
+                          className="size-2 rounded-full bg-yellow-500 shrink-0"
+                          title="Has warnings"
+                        />
+                      )}
+                      <span className="font-medium text-foreground truncate">
+                        {trace.name || trace.id.slice(0, 8)}
+                      </span>
+                      {trace.primaryModel && (
+                        <Badge variant="secondary" className="text-[10px] font-mono shrink-0">
+                          {trace.primaryModel}
+                        </Badge>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Tooltip>
+                      <TooltipTrigger className="cursor-default">
+                        <span className="text-muted-foreground">
+                          {formatRelativeTime(new Date(trace.timestamp))}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>{new Date(trace.timestamp).toLocaleString()}</TooltipContent>
+                    </Tooltip>
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono text-xs">
+                    {trace.latencyMs > 0 ? formatDuration(trace.latencyMs) : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono text-xs">
+                    {trace.totalTokens > 0 ? formatTokens(trace.totalTokens) : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono text-xs">
+                    {trace.totalCost ? formatCost(trace.totalCost) : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right text-muted-foreground">
+                    {trace.observationCount}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-1">
+                      {trace.tags.slice(0, 3).map((tag) => (
+                        <Badge key={tag} variant="secondary" className="text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {hasNextPage && (
+            <div className="flex justify-center py-4">
+              <button
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="text-sm text-muted-foreground hover:text-foreground"
               >
-                <td className="px-6 py-3">
-                  <span className="font-medium text-foreground">
-                    {trace.name || trace.id.slice(0, 8)}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {new Date(trace.timestamp).toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-right font-mono text-xs">
-                  {trace.latencyMs > 0 ? formatDuration(trace.latencyMs) : "—"}
-                </td>
-                <td className="px-4 py-3 text-right font-mono text-xs">
-                  {trace.totalTokens > 0 ? formatTokens(trace.totalTokens) : "—"}
-                </td>
-                <td className="px-4 py-3 text-right font-mono text-xs">
-                  {trace.totalCost ? formatCost(trace.totalCost) : "—"}
-                </td>
-                <td className="px-4 py-3 text-right text-muted-foreground">
-                  {trace.observationCount}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-1">
-                    {trace.tags.slice(0, 3).map((tag) => (
-                      <Badge key={tag} variant="secondary" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {hasNextPage && (
-          <div className="flex justify-center py-4">
-            <button
-              onClick={() => fetchNextPage()}
-              disabled={isFetchingNextPage}
-              className="text-sm text-muted-foreground hover:text-foreground"
-            >
-              {isFetchingNextPage ? "Loading..." : "Load more"}
-            </button>
-          </div>
-        )}
+                {isFetchingNextPage ? "Loading..." : "Load more"}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }

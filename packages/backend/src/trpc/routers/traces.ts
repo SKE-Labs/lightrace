@@ -26,15 +26,13 @@ export const tracesRouter = router({
           _count: { select: { observations: true } },
           observations: {
             select: {
-              promptTokens: true,
-              completionTokens: true,
               totalTokens: true,
               startTime: true,
               endTime: true,
               type: true,
-              inputCost: true,
-              outputCost: true,
               totalCost: true,
+              level: true,
+              model: true,
             },
           },
         },
@@ -48,9 +46,7 @@ export const tracesRouter = router({
 
       const items = traces.map((trace) => {
         const totalTokens = trace.observations.reduce((sum, o) => sum + o.totalTokens, 0);
-        const promptTokens = trace.observations.reduce((sum, o) => sum + o.promptTokens, 0);
-        const completionTokens = trace.observations.reduce((sum, o) => sum + o.completionTokens, 0);
-        const totalCost = trace.observations.reduce((sum, o) => sum + (o.totalCost ?? 0), 0);
+        const totalCost = trace.observations.reduce((sum, o) => sum + Number(o.totalCost ?? 0), 0);
 
         const times = trace.observations
           .map((o) => o.startTime.getTime())
@@ -59,6 +55,11 @@ export const tracesRouter = router({
         const maxTime = times.length > 0 ? Math.max(...times) : trace.timestamp.getTime();
         const latencyMs = maxTime - minTime;
 
+        const hasError = trace.observations.some((o) => o.level === "ERROR");
+        const hasWarning = !hasError && trace.observations.some((o) => o.level === "WARNING");
+        const primaryModel =
+          trace.observations.find((o) => o.type === "GENERATION" && o.model)?.model ?? null;
+
         return {
           id: trace.id,
           name: trace.name,
@@ -66,10 +67,11 @@ export const tracesRouter = router({
           tags: trace.tags,
           observationCount: trace._count.observations,
           totalTokens,
-          promptTokens,
-          completionTokens,
           totalCost: totalCost > 0 ? totalCost : null,
           latencyMs,
+          hasError,
+          hasWarning,
+          primaryModel,
         };
       });
 

@@ -6,4 +6,9 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // Re-export from shared
-export { formatDuration, formatTokens, formatCost } from "@lightrace/shared/utils";
+export {
+  formatDuration,
+  formatTokens,
+  formatCost,
+  formatRelativeTime,
+} from "@lightrace/shared/utils";

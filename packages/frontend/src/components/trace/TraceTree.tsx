@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { cn, formatDuration } from "@/lib/utils";
-import { Route, Bot, Brackets, CircleDot, Wrench, Link } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { useState, useCallback, useMemo } from "react";
+import { cn, formatDuration, formatCost } from "@/lib/utils";
+import { getObservationIcon } from "@/lib/observation-icons";
+import { Route, ChevronRight } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
-import type { Observation, ObservationType } from "@prisma/client";
+import type { Observation } from "@prisma/client";
 
 interface TraceTreeProps {
   trace: {
@@ -43,49 +43,15 @@ function buildTree(observations: Observation[]): TreeNode[] {
   return roots;
 }
 
-function typeIcon(type: ObservationType): {
-  icon: LucideIcon;
-  color: string;
-  barColor: string;
-  label: string;
-} {
-  switch (type) {
-    case "GENERATION":
-      return {
-        icon: Bot,
-        color: "text-blue-500",
-        barColor: "bg-blue-500/40",
-        label: "Generation",
-      };
-    case "SPAN":
-      return {
-        icon: Brackets,
-        color: "text-amber-500",
-        barColor: "bg-amber-500/40",
-        label: "Span",
-      };
-    case "EVENT":
-      return {
-        icon: CircleDot,
-        color: "text-green-500",
-        barColor: "bg-green-500/40",
-        label: "Event",
-      };
-    case "TOOL":
-      return {
-        icon: Wrench,
-        color: "text-orange-500",
-        barColor: "bg-orange-500/40",
-        label: "Tool",
-      };
-    case "CHAIN":
-      return {
-        icon: Link,
-        color: "text-pink-500",
-        barColor: "bg-pink-500/40",
-        label: "Chain",
-      };
+function collectNodeIds(nodes: TreeNode[]): string[] {
+  const ids: string[] = [];
+  for (const node of nodes) {
+    if (node.children.length > 0) {
+      ids.push(node.observation.id);
+      ids.push(...collectNodeIds(node.children));
+    }
   }
+  return ids;
 }
 
 function TreeNodeRow({
@@ -93,88 +59,83 @@ function TreeNodeRow({
   depth,
   selectedId,
   onSelect,
-  traceStartTime,
-  traceDuration,
+  collapsedIds,
+  onToggleCollapse,
 }: {
   node: TreeNode;
   depth: number;
   selectedId: string | null;
   onSelect: (id: string, isTrace: boolean) => void;
-  traceStartTime: number;
-  traceDuration: number;
+  collapsedIds: Set<string>;
+  onToggleCollapse: (id: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(true);
   const obs = node.observation;
-  const { icon: Icon, color, barColor, label } = typeIcon(obs.type);
+  const isCollapsed = collapsedIds.has(obs.id);
+  const { icon: Icon, color, label } = getObservationIcon(obs.type);
   const duration = obs.endTime
     ? new Date(obs.endTime).getTime() - new Date(obs.startTime).getTime()
     : 0;
-
-  const offsetPercent =
-    traceDuration > 0
-      ? ((new Date(obs.startTime).getTime() - traceStartTime) / traceDuration) * 100
-      : 0;
-  const widthPercent = traceDuration > 0 && duration > 0 ? (duration / traceDuration) * 100 : 1;
 
   return (
     <>
       <div
         className={cn(
-          "flex items-center gap-2 px-2 py-1.5 cursor-pointer border-l-2 transition-colors",
-          selectedId === obs.id
-            ? "bg-accent border-l-primary"
-            : "border-l-transparent hover:bg-accent/30",
+          "flex items-center gap-1.5 pr-2 py-1.5 cursor-pointer transition-colors",
+          selectedId === obs.id ? "bg-accent" : "hover:bg-accent/30",
         )}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
         onClick={() => onSelect(obs.id, false)}
       >
-        {node.children.length > 0 && (
+        {/* Expand/collapse or spacer */}
+        {node.children.length > 0 ? (
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setExpanded(!expanded);
+              onToggleCollapse(obs.id);
             }}
-            className="text-muted-foreground hover:text-foreground text-xs w-4"
+            className="text-muted-foreground hover:text-foreground shrink-0 p-0.5"
           >
-            {expanded ? "▾" : "▸"}
+            <ChevronRight
+              className={cn("size-3.5 transition-transform", !isCollapsed && "rotate-90")}
+            />
           </button>
+        ) : (
+          <span className="w-[18px] shrink-0" />
         )}
-        {node.children.length === 0 && <span className="w-4" />}
 
+        {/* Type icon */}
         <Tooltip>
-          <TooltipTrigger className="inline-flex">
-            <Icon className={cn("size-4 shrink-0", color)} />
+          <TooltipTrigger className="inline-flex shrink-0">
+            <Icon className={cn("size-4", color)} />
           </TooltipTrigger>
           <TooltipContent>{label}</TooltipContent>
         </Tooltip>
 
-        <span className="text-sm truncate flex-shrink-0 max-w-[180px]">
-          {obs.name || obs.id.slice(0, 8)}
-        </span>
+        {/* Name */}
+        <span className="text-sm truncate min-w-0 flex-1">{obs.name || obs.id.slice(0, 8)}</span>
 
-        {/* Latency bar */}
-        <div className="flex-1 mx-2 h-3 relative bg-muted/30 rounded-sm overflow-hidden min-w-[60px]">
-          <div
-            className={cn("absolute h-full rounded-sm", barColor)}
-            style={{
-              left: `${Math.min(offsetPercent, 100)}%`,
-              width: `${Math.max(Math.min(widthPercent, 100 - offsetPercent), 0.5)}%`,
-            }}
-          />
-        </div>
-
+        {/* Duration */}
         <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
           {duration > 0 ? formatDuration(duration) : "—"}
         </span>
 
+        {/* Tokens */}
         {obs.totalTokens > 0 && (
           <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
             {obs.totalTokens}t
           </span>
         )}
+
+        {/* Cost */}
+        {obs.totalCost !== null && Number(obs.totalCost) > 0 && (
+          <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+            {formatCost(Number(obs.totalCost))}
+          </span>
+        )}
       </div>
 
-      {expanded &&
+      {/* Children */}
+      {!isCollapsed &&
         node.children.map((child) => (
           <TreeNodeRow
             key={child.observation.id}
@@ -182,8 +143,8 @@ function TreeNodeRow({
             depth={depth + 1}
             selectedId={selectedId}
             onSelect={onSelect}
-            traceStartTime={traceStartTime}
-            traceDuration={traceDuration}
+            collapsedIds={collapsedIds}
+            onToggleCollapse={onToggleCollapse}
           />
         ))}
     </>
@@ -191,32 +152,64 @@ function TreeNodeRow({
 }
 
 export function TraceTree({ trace, observations, selectedId, onSelect }: TraceTreeProps) {
-  const tree = buildTree(observations);
+  const tree = useMemo(() => buildTree(observations), [observations]);
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
 
-  const allTimes = observations.flatMap((o) => {
-    const times = [new Date(o.startTime).getTime()];
-    if (o.endTime) times.push(new Date(o.endTime).getTime());
-    return times;
-  });
-  const traceStartTime =
-    allTimes.length > 0 ? Math.min(...allTimes) : new Date(trace.timestamp).getTime();
-  const traceEndTime = allTimes.length > 0 ? Math.max(...allTimes) : traceStartTime;
-  const traceDuration = traceEndTime - traceStartTime;
+  const onToggleCollapse = useCallback((id: string) => {
+    setCollapsedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const expandAll = useCallback(() => setCollapsedIds(new Set()), []);
+  const collapseAll = useCallback(() => {
+    setCollapsedIds(new Set(collectNodeIds(tree)));
+  }, [tree]);
+
+  const traceDuration = useMemo(() => {
+    const allTimes = observations.flatMap((o) => {
+      const times = [new Date(o.startTime).getTime()];
+      if (o.endTime) times.push(new Date(o.endTime).getTime());
+      return times;
+    });
+    const start = allTimes.length > 0 ? Math.min(...allTimes) : new Date(trace.timestamp).getTime();
+    const end = allTimes.length > 0 ? Math.max(...allTimes) : start;
+    return end - start;
+  }, [observations, trace.timestamp]);
 
   return (
     <TooltipProvider>
       <div className="flex flex-col">
+        {/* Toolbar */}
+        {observations.length > 0 && (
+          <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/50">
+            <span className="text-xs text-muted-foreground">
+              {observations.length} observation{observations.length !== 1 && "s"}
+            </span>
+            <div className="flex gap-1 text-xs">
+              <button onClick={expandAll} className="text-muted-foreground hover:text-foreground">
+                Expand all
+              </button>
+              <span className="text-border">|</span>
+              <button onClick={collapseAll} className="text-muted-foreground hover:text-foreground">
+                Collapse all
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Trace root node */}
         <div
           className={cn(
-            "flex items-center gap-2 px-2 py-2 cursor-pointer border-l-2 transition-colors",
-            selectedId === trace.id
-              ? "bg-accent border-l-primary"
-              : "border-l-transparent hover:bg-accent/30",
+            "flex items-center gap-2 px-2 py-2 cursor-pointer transition-colors",
+            selectedId === trace.id ? "bg-accent" : "hover:bg-accent/30",
           )}
           onClick={() => onSelect(trace.id, true)}
         >
-          <span className="w-4" />
+          <span className="w-5 shrink-0" />
           <Tooltip>
             <TooltipTrigger className="inline-flex">
               <Route className="size-4 shrink-0 text-purple-500" />
@@ -239,8 +232,8 @@ export function TraceTree({ trace, observations, selectedId, onSelect }: TraceTr
             depth={1}
             selectedId={selectedId}
             onSelect={onSelect}
-            traceStartTime={traceStartTime}
-            traceDuration={traceDuration}
+            collapsedIds={collapsedIds}
+            onToggleCollapse={onToggleCollapse}
           />
         ))}
 

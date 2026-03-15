@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useRealtimeTraceDetail } from "@/lib/use-realtime";
 import { TraceTree } from "@/components/trace/TraceTree";
@@ -19,10 +19,38 @@ export default function TraceDetailPage({ params }: { params: Promise<{ traceId:
   );
   const [selected, setSelected] = useState<{ id: string; isTrace: boolean } | null>(null);
 
+  // Auto-select trace root on load
+  useEffect(() => {
+    if (trace && !selected) {
+      setSelected({ id: trace.id, isTrace: true });
+    }
+  }, [trace, selected]);
+
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center text-muted-foreground">
-        Loading trace...
+      <div className="flex h-full flex-col">
+        <div className="flex items-center gap-3 border-b border-border px-6 py-3">
+          <div className="h-4 w-12 bg-muted animate-pulse rounded" />
+          <span className="text-muted-foreground">/</span>
+          <div className="h-4 w-32 bg-muted animate-pulse rounded" />
+        </div>
+        <div className="flex flex-1 overflow-hidden">
+          <div className="w-[420px] flex-shrink-0 border-r border-border p-3 space-y-2">
+            {Array.from({ length: 8 }, (_, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <div className="size-4 bg-muted animate-pulse rounded" />
+                <div
+                  className="h-4 bg-muted animate-pulse rounded"
+                  style={{ width: `${140 - i * 10}px` }}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="flex-1 p-4 space-y-4">
+            <div className="h-6 w-48 bg-muted animate-pulse rounded" />
+            <div className="h-32 bg-muted animate-pulse rounded" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -66,11 +94,6 @@ export default function TraceDetailPage({ params }: { params: Promise<{ traceId:
 
         {/* Detail panel */}
         <div className="flex-1 overflow-hidden">
-          {!selected && (
-            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              Select a trace or observation to view details
-            </div>
-          )}
           {selected?.isTrace && <ObservationDetail type="trace" trace={trace} />}
           {selectedObservation && (
             <ObservationDetail type="observation" observation={selectedObservation} />
