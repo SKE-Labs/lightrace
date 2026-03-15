@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
+import { MemoizedMarkdown } from "./MemoizedMarkdown";
 
 interface FormattedViewProps {
   data: unknown;
@@ -99,6 +100,7 @@ function extractContent(content: ChatMessage["content"]): ExtractedContent {
           break;
         default:
           if (b.type) {
+            // Strip noisy metadata fields from fallback display
             const { extras, index, ...rest } = b;
             result.texts.push(JSON.stringify(rest, null, 2));
           }
@@ -108,11 +110,8 @@ function extractContent(content: ChatMessage["content"]): ExtractedContent {
     return result;
   }
 
-  if (typeof content === "object") {
-    result.texts.push(JSON.stringify(content, null, 2));
-    return result;
-  }
-
+  // Non-array object (e.g., tool definition in tool role)
+  result.texts.push(JSON.stringify(content, null, 2));
   return result;
 }
 
@@ -245,9 +244,17 @@ function ToolDefinitionBlock({ content }: { content: Record<string, unknown> }) 
   const [expanded, setExpanded] = useState(false);
   const funcObj = content.function as Record<string, unknown> | undefined;
   const funcName = (funcObj?.name as string) ?? "function";
+  const funcDesc = (funcObj?.description as string) ?? "";
+  const params = funcObj?.parameters as Record<string, unknown> | undefined;
+  const properties = (params?.properties as Record<string, Record<string, unknown>>) ?? {};
+  const required = (params?.required as string[]) ?? [];
+  const paramEntries = Object.entries(properties);
+
+  // Show first line of description as preview
+  const descPreview = funcDesc.split("\n")[0];
 
   return (
-    <div className="rounded border border-border px-2.5 py-1.5">
+    <div className="px-3 py-2">
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -257,15 +264,76 @@ function ToolDefinitionBlock({ content }: { content: Record<string, unknown> }) 
       >
         <ChevronIcon expanded={expanded} />
         <span className="text-xs font-medium text-muted-foreground">{funcName}</span>
-        <span className="text-[10px] text-muted-foreground/50 ml-1">definition</span>
+        {!expanded && descPreview && (
+          <span className="text-[10px] text-muted-foreground/50 ml-1 truncate max-w-[300px]">
+            {descPreview}
+          </span>
+        )}
       </button>
       {expanded && (
-        <pre className="mt-1.5 text-xs text-muted-foreground overflow-auto whitespace-pre-wrap">
-          {JSON.stringify(content, null, 2)}
-        </pre>
+        <div className="mt-1.5 space-y-2">
+          {/* Description */}
+          {funcDesc && (
+            <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
+              {funcDesc}
+            </p>
+          )}
+
+          {/* Parameters table */}
+          {paramEntries.length > 0 && (
+            <div className="overflow-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="py-1 pr-3 text-left font-medium text-muted-foreground">Name</th>
+                    <th className="py-1 pr-3 text-left font-medium text-muted-foreground">Type</th>
+                    <th className="py-1 pr-3 text-center font-medium text-muted-foreground">Req</th>
+                    <th className="py-1 text-left font-medium text-muted-foreground">
+                      Description
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paramEntries.map(([name, prop]) => {
+                    const propType = resolveParamType(prop);
+                    const propDesc = (prop.description as string) ?? "";
+                    const isRequired = required.includes(name);
+                    return (
+                      <tr key={name} className="border-b border-border/50 last:border-0">
+                        <td className="py-1 pr-3 font-mono text-foreground whitespace-nowrap">
+                          {name}
+                        </td>
+                        <td className="py-1 pr-3 text-muted-foreground whitespace-nowrap">
+                          {propType}
+                        </td>
+                        <td className="py-1 pr-3 text-center">
+                          {isRequired && <span className="text-foreground">*</span>}
+                        </td>
+                        <td className="py-1 text-muted-foreground">{propDesc}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
+}
+
+function resolveParamType(prop: Record<string, unknown>): string {
+  if (prop.type) return prop.type as string;
+  // Handle anyOf patterns (e.g., {anyOf: [{type: "string"}, {type: "null"}]})
+  if (Array.isArray(prop.anyOf)) {
+    const types = prop.anyOf.map((v: Record<string, unknown>) => v.type as string).filter(Boolean);
+    return types.join(" | ");
+  }
+  if (Array.isArray(prop.enum)) {
+    return prop.enum.map((v: unknown) => JSON.stringify(v)).join(" | ");
+  }
+  return "unknown";
 }
 
 function ChatMessageView({
@@ -316,11 +384,14 @@ function ChatMessageView({
           )}
 
           {/* Text content */}
-          {textContent.length > 0 && (
-            <div className="text-sm whitespace-pre-wrap break-words leading-relaxed">
-              {textContent}
-            </div>
-          )}
+          {textContent.length > 0 &&
+            (message.role === "assistant" || message.role === "system" ? (
+              <MemoizedMarkdown text={textContent} className="text-sm" />
+            ) : (
+              <div className="text-sm whitespace-pre-wrap break-words leading-relaxed">
+                {textContent}
+              </div>
+            ))}
 
           {/* Tool calls */}
           {allToolCalls.length > 0 && (
@@ -397,21 +468,18 @@ function ChatMLView({ messages }: { messages: ChatMessage[] }) {
 }
 
 function ToolDefinitionsSection({ toolDefs }: { toolDefs: ChatMessage[] }) {
-  const [expanded, setExpanded] = useState(false);
+  const [open, setOpen] = useState(false);
 
   return (
-    <div className="rounded-md border border-border">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 w-full text-left px-3 py-2"
-      >
-        <ChevronIcon expanded={expanded} />
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <div className="space-y-2">
+      <button onClick={() => setOpen(!open)} className="inline-flex items-center gap-1">
+        <ChevronIcon expanded={open} />
+        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           Tool Definitions ({toolDefs.length})
-        </span>
+        </h3>
       </button>
-      {expanded && (
-        <div className="px-3 pb-2 space-y-1.5">
+      {open && (
+        <div className="divide-y divide-border rounded-md border border-border">
           {toolDefs.map((msg, i) => {
             const content = msg.content as Record<string, unknown>;
             return <ToolDefinitionBlock key={i} content={content} />;
@@ -470,17 +538,18 @@ function TreeRow({
   const expandable = isExpandable(value);
   const [expanded, setExpanded] = useState(defaultExpanded);
 
-  const entries = expandable
-    ? Array.isArray(value)
-      ? value.map((v, i) => [String(i), v] as const)
-      : Object.entries(value as Record<string, unknown>)
-    : [];
-
   const typeHint = expandable
     ? Array.isArray(value)
       ? `[${value.length}]`
       : `{${Object.keys(value as Record<string, unknown>).length}}`
     : null;
+
+  const entries =
+    expandable && expanded
+      ? Array.isArray(value)
+        ? value.map((v, i) => [String(i), v] as const)
+        : Object.entries(value as Record<string, unknown>)
+      : [];
 
   return (
     <>
@@ -569,26 +638,25 @@ function tryParseJson(str: string): unknown | undefined {
   }
 }
 
-function normalizeData(data: unknown): unknown {
-  if (typeof data === "string") {
-    // Try standard JSON parse
-    let parsed = tryParseJson(data);
+function normalizeData(data: unknown, depth = 0): unknown {
+  if (typeof data !== "string" || depth > 3) return data;
 
-    // Try Python-style dict: replace single-quoted keys/values at boundaries
-    // Only attempt if it looks like a dict/list (starts with { or [)
-    if (parsed === undefined && /^\s*[{\[]/.test(data)) {
-      parsed = tryParseJson(data.replace(/'/g, '"'));
-    }
+  // Try standard JSON parse
+  let parsed = tryParseJson(data);
 
-    if (parsed === undefined) return data;
-
-    // Handle double-encoded JSON strings
-    if (typeof parsed === "string") {
-      return normalizeData(parsed);
-    }
-    return parsed;
+  // Try Python-style dict: replace single-quoted keys/values at boundaries
+  // Only attempt if it looks like a dict/list (starts with { or [)
+  if (parsed === undefined && /^\s*[{\[]/.test(data)) {
+    parsed = tryParseJson(data.replace(/'/g, '"'));
   }
-  return data;
+
+  if (parsed === undefined) return data;
+
+  // Handle double-encoded JSON strings
+  if (typeof parsed === "string") {
+    return normalizeData(parsed, depth + 1);
+  }
+  return parsed;
 }
 
 export function FormattedView({ data }: FormattedViewProps) {
@@ -608,6 +676,16 @@ export function FormattedView({ data }: FormattedViewProps) {
   // ChatML array
   if (isChatML(normalized)) {
     return <ChatMLView messages={normalized} />;
+  }
+
+  // Single ChatML message (not wrapped in array)
+  if (
+    typeof normalized === "object" &&
+    normalized !== null &&
+    !Array.isArray(normalized) &&
+    "role" in normalized
+  ) {
+    return <ChatMLView messages={[normalized as ChatMessage]} />;
   }
 
   // Everything else: path/value table
