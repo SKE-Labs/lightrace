@@ -113,6 +113,9 @@ function TreeNodeRow({
 
         {/* Name */}
         <span className="text-sm truncate min-w-0 flex-1">{obs.name || obs.id.slice(0, 8)}</span>
+        {obs.level === "ERROR" && (
+          <span className="size-2 rounded-full bg-destructive shrink-0" title="Error" />
+        )}
 
         {/* Duration */}
         <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
