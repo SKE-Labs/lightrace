@@ -4,11 +4,13 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { JsonViewer } from "./JsonViewer";
 import { FormattedView } from "./FormattedView";
+import { ToolRerunModal } from "./ToolRerunModal";
 import { formatDuration, formatTokens, formatCost } from "@/lib/utils";
-import { Route, Copy, Clock, Coins, Hash, ChevronRight } from "lucide-react";
+import { Route, Copy, Clock, Coins, Hash, ChevronRight, RotateCcw } from "lucide-react";
 import { getObservationIcon } from "@/lib/observation-icons";
 import type { Observation, Trace } from "@prisma/client";
 
@@ -88,29 +90,59 @@ function TraceDetailPanel({ trace }: { trace: Trace }) {
 }
 
 function ObservationDetailPanel({ observation }: { observation: Observation }) {
+  const [rerunOpen, setRerunOpen] = useState(false);
   const duration = observation.endTime
     ? new Date(observation.endTime).getTime() - new Date(observation.startTime).getTime()
     : null;
   const { icon: Icon, color } = getObservationIcon(observation.type);
+  const isTool = observation.type === "TOOL";
 
   return (
     <TooltipProvider>
       <div className="flex h-full flex-col">
-        {/* Header row 1: icon + name + level */}
+        {/* Header row 1: icon + name + level + re-run */}
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
           <Icon className={`size-4 shrink-0 ${color}`} />
           <h2 className="text-sm font-medium truncate">{observation.name || observation.id}</h2>
+          {isTool && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-auto gap-1 text-xs h-7"
+              onClick={() => setRerunOpen(true)}
+            >
+              <RotateCcw className="size-3" />
+              Re-run
+            </Button>
+          )}
           {observation.level === "ERROR" && (
-            <Badge variant="destructive" className="text-xs ml-auto">
+            <Badge variant="destructive" className={cn("text-xs", !isTool && "ml-auto")}>
               ERROR
             </Badge>
           )}
           {observation.level === "WARNING" && (
-            <Badge className="text-xs ml-auto bg-yellow-500/15 text-yellow-800 dark:text-yellow-400 border-yellow-500/30">
+            <Badge
+              className={cn(
+                "text-xs bg-yellow-500/15 text-yellow-800 dark:text-yellow-400 border-yellow-500/30",
+                !isTool && "ml-auto",
+              )}
+            >
               WARNING
             </Badge>
           )}
         </div>
+
+        {/* Tool re-run modal */}
+        {isTool && (
+          <ToolRerunModal
+            open={rerunOpen}
+            onOpenChange={setRerunOpen}
+            toolName={observation.name ?? observation.id}
+            originalInput={observation.input}
+            originalOutput={observation.output}
+            observationId={observation.id}
+          />
+        )}
 
         {/* Header row 2: metric badges */}
         <div className="flex flex-wrap items-center gap-1.5 px-4 py-2 border-b border-border">

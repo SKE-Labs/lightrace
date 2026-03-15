@@ -10,6 +10,7 @@ import { extractUser } from "./middleware/auth";
 import { ingestionRoutes } from "./routes/ingestion";
 import { otelRoutes } from "./routes/otel";
 import { realtimeEmitter } from "./realtime/pubsub";
+import { handleToolConnection } from "./routes/tools-ws";
 
 const INTERNAL_SECRET = process.env.INTERNAL_SECRET || "dev-internal-secret";
 const PORT = parseInt(process.env.PORT || "3002", 10);
@@ -59,8 +60,23 @@ serve({ fetch: app.fetch, port: PORT }, (info) => {
   console.log(`[backend] HTTP listening on http://localhost:${info.port}`);
 });
 
-// Start WebSocket server for tRPC subscriptions
+// Start WebSocket server for tRPC subscriptions + tool connections
 const wss = new WebSocketServer({ port: WS_PORT });
+
+// Route WebSocket connections based on URL path
+wss.on("connection", (ws, req) => {
+  const url = new URL(req.url ?? "", `http://localhost:${WS_PORT}`);
+
+  if (url.pathname === "/api/public/tools/ws") {
+    // SDK tool connection — authenticated via API key
+    const authHeader = req.headers.authorization ?? null;
+    handleToolConnection(ws, authHeader);
+    return;
+  }
+
+  // All other connections go to tRPC (default behavior)
+  // The tRPC handler is set up below via applyWSSHandler
+});
 
 applyWSSHandler({
   wss,

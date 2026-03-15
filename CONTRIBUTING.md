@@ -23,11 +23,10 @@ docker compose up -d
 # Install dependencies
 pnpm install
 
-# Copy env file and symlink to packages
-cp .env.example .env
-ln -sf ../../.env packages/shared/.env
-ln -sf ../../.env packages/backend/.env
-ln -sf ../../.env packages/frontend/.env
+# Copy per-package env files
+cp packages/shared/.env.example packages/shared/.env
+cp packages/backend/.env.example packages/backend/.env
+cp packages/frontend/.env.example packages/frontend/.env
 
 # Generate Prisma client, create database, and seed
 pnpm db:generate
@@ -43,37 +42,35 @@ pnpm dev
 
 ### SDK Testing
 
-**Langfuse v4** (env vars):
+**LightRace Python SDK:**
+
+```python
+from lightrace import Lightrace, trace
+
+lt = Lightrace(
+    public_key="pk-lt-demo",
+    secret_key="sk-lt-demo",
+    host="http://localhost:3002",
+)
+
+@trace()
+def my_agent(query: str):
+    return do_search(query)
+
+@trace(type="tool")
+def do_search(query: str) -> list:
+    return ["result"]
+
+my_agent("test")
+lt.flush()
+```
+
+**Langfuse SDKs** (also supported):
 
 ```bash
 export LANGFUSE_PUBLIC_KEY=pk-lt-demo
 export LANGFUSE_SECRET_KEY=sk-lt-demo
 export LANGFUSE_HOST=http://localhost:3002
-```
-
-```python
-from langfuse import Langfuse
-
-client = Langfuse()
-with client.start_as_current_observation(name="test-trace"):
-    pass
-client.flush()
-```
-
-**Langfuse v3** (constructor args):
-
-```python
-from langfuse import Langfuse
-
-langfuse = Langfuse(
-    public_key="pk-lt-demo",
-    secret_key="sk-lt-demo",
-    host="http://localhost:3002"
-)
-
-trace = langfuse.trace(name="test")
-trace.generation(name="llm-call", model="gpt-4", input="hello", output="world")
-langfuse.flush()
 ```
 
 ## Project Structure
@@ -83,6 +80,8 @@ lightrace/
 ├── packages/
 │   ├── shared/                    # @lightrace/shared
 │   │   ├── prisma/                # Schema, migrations, seed
+│   │   ├── prisma.config.ts       # Prisma 7 config (datasource URL, seed)
+│   │   ├── .env                   # DATABASE_URL, REDIS_URL
 │   │   └── src/
 │   │       ├── db.ts              # Prisma client singleton
 │   │       ├── redis.ts           # ioredis client
@@ -91,36 +90,45 @@ lightrace/
 │   │       └── auth/              # API key authentication
 │   │
 │   ├── backend/                   # @lightrace/backend
+│   │   ├── .env                   # DATABASE_URL, REDIS_URL, PORT, WS_PORT, INTERNAL_SECRET
 │   │   └── src/
 │   │       ├── index.ts           # Hono server entrypoint
 │   │       ├── trpc/              # tRPC router, context, procedures
 │   │       │   ├── context.ts     # Context creation + auth middleware
 │   │       │   ├── router.ts      # Root router (AppRouter)
-│   │       │   └── routers/       # traces, observations, settings, realtime
-│   │       ├── routes/            # REST routes (ingestion, OTel)
+│   │       │   └── routers/       # traces, observations, settings, realtime, tools
+│   │       ├── routes/            # REST routes (ingestion, OTel, tools-ws)
 │   │       ├── ingestion/         # Event processing + OTel spans
 │   │       ├── realtime/          # Redis Pub/Sub + event emitter
 │   │       └── middleware/        # Internal auth validation
 │   │
 │   └── frontend/                  # @lightrace/frontend
+│       ├── .env                   # DATABASE_URL, REDIS_URL, AUTH_*, BACKEND_URL, INTERNAL_SECRET, WS_PORT
 │       └── src/
 │           ├── app/               # Next.js 15 App Router pages
-│           │   ├── (dashboard)/   # Authenticated pages (traces, settings)
+│           │   ├── (dashboard)/   # Authenticated pages (traces, tools, settings)
 │           │   ├── api/           # tRPC proxy, Auth.js routes, WS auth
 │           │   └── login/         # Login page
 │           ├── components/
 │           │   ├── ui/            # shadcn/ui components
 │           │   ├── layout/        # Sidebar
-│           │   └── trace/         # TraceList, TraceTree, ObservationDetail, JsonViewer
+│           │   └── trace/         # TraceList, TraceTree, ObservationDetail, ToolRerunModal
 │           ├── server/
 │           │   └── auth.ts        # Auth.js v5 config
 │           └── lib/               # tRPC client, utilities, realtime hooks
 │
 ├── docker-compose.yml             # PostgreSQL + Redis
 ├── turbo.json                     # Turborepo task config
-├── pnpm-workspace.yaml            # Workspace packages
-└── .env                           # Environment variables
+└── pnpm-workspace.yaml            # Workspace packages
 ```
+
+## Environment Variables
+
+Each package has its own `.env` file (copy from `.env.example`):
+
+- **`packages/shared/.env`** — `DATABASE_URL`, `REDIS_URL`
+- **`packages/backend/.env`** — `DATABASE_URL`, `REDIS_URL`, `PORT`, `WS_PORT`, `INTERNAL_SECRET`
+- **`packages/frontend/.env`** — `DATABASE_URL`, `REDIS_URL`, `AUTH_SECRET`, `AUTH_URL`, `NEXTAUTH_URL`, `BACKEND_URL`, `INTERNAL_SECRET`, `WS_PORT`
 
 ## Development Commands
 
@@ -190,7 +198,7 @@ pnpm vitest run packages/shared/src/schemas/ingestion.test.ts
 ### Package Responsibilities
 
 - **`@lightrace/shared`**: Database access, validation schemas, API key auth, Redis client. No business logic beyond data access.
-- **`@lightrace/backend`**: All business logic. Hono server handles SDK ingestion (REST), OTel (protobuf), tRPC queries/mutations, and WebSocket subscriptions. Authenticated via internal secret from frontend proxy.
+- **`@lightrace/backend`**: All business logic. Hono server handles SDK ingestion (REST), OTel (protobuf), tRPC queries/mutations, WebSocket subscriptions, and tool invocation via WebSocket.
 - **`@lightrace/frontend`**: UI only. Auth.js handles user login. tRPC queries/mutations are proxied to the backend via `/api/trpc`. tRPC subscriptions connect directly to the backend WebSocket server (port 3003).
 
 ### Auth Flow
@@ -217,6 +225,16 @@ Two ingestion paths are supported:
 3. Protobuf or JSON payload is decoded, spans are mapped to traces/observations
 
 Both paths publish affected trace IDs to Redis Pub/Sub (`trace:{projectId}` channel) after processing.
+
+### Tool Invocation Flow
+
+1. SDK decorated with `@trace(type="tool")` connects via WebSocket to `ws://backend:3003/api/public/tools/ws`
+2. SDK authenticates with API key (Basic Auth header) and registers available tools
+3. Backend stores tool registrations in the `ToolRegistration` table
+4. User clicks "Re-run" on a TOOL observation in the UI
+5. Backend sends an `invoke` message over the WebSocket with HMAC-SHA256 signature
+6. SDK verifies the signature, executes the tool locally, returns the result
+7. Backend creates a new observation with the result
 
 ### Real-time Update Flow
 

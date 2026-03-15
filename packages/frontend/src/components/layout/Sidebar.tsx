@@ -4,11 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { ListTree, Settings } from "lucide-react";
+import { ListTree, Settings, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 const navItems: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/traces", label: "Traces", icon: ListTree },
+  { href: "/tools", label: "Tools", icon: Wrench },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

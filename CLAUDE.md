@@ -2,14 +2,14 @@
 
 ## Project Overview
 
-LightRace is a lightweight, open-source LLM tracing tool for local development. It is compatible with the Langfuse Python/JS SDKs and provides a simple UI for viewing traces, observations, and token usage.
+LightRace is a lightweight, open-source LLM tracing tool with remote tool invocation. It is compatible with the Langfuse Python/JS SDKs and has its own SDKs (`lightrace-python`, `lightrace-js`) with a unified `@trace` decorator that supports remote tool re-execution.
 
 ## Architecture
 
 Monorepo with Turborepo + pnpm workspaces:
 
 - **`packages/shared`** (`@lightrace/shared`) — Prisma schema, DB client, Zod schemas, Redis client, shared utils
-- **`packages/backend`** (`@lightrace/backend`) — Hono server (tRPC + REST ingestion + OTel + WebSocket)
+- **`packages/backend`** (`@lightrace/backend`) — Hono server (tRPC + REST ingestion + OTel + Tool WebSocket)
 - **`packages/frontend`** (`@lightrace/frontend`) — Next.js 15 (UI + Auth.js), proxies tRPC to backend
 - **Infrastructure:** PostgreSQL (port 5435) + Redis (port 6379) via docker-compose
 
@@ -17,28 +17,35 @@ Frontend authenticates users via Auth.js. tRPC queries/mutations are proxied thr
 
 Real-time flow: ingestion → Redis Pub/Sub → tRPC subscription → WebSocket → frontend query invalidation.
 
+Tool invocation flow: SDK connects WS to backend → registers tools → backend sends invoke commands → SDK executes locally → result returned.
+
 ## Key Files
 
-| Purpose            | Path                                                  |
-| ------------------ | ----------------------------------------------------- |
-| Prisma schema      | `packages/shared/prisma/schema.prisma`                |
-| DB client          | `packages/shared/src/db.ts`                           |
-| Redis client       | `packages/shared/src/redis.ts`                        |
-| Ingestion schemas  | `packages/shared/src/schemas/ingestion.ts`            |
-| API auth           | `packages/shared/src/auth/apiAuth.ts`                 |
-| Backend entrypoint | `packages/backend/src/index.ts`                       |
-| tRPC router        | `packages/backend/src/trpc/router.ts`                 |
-| tRPC context       | `packages/backend/src/trpc/context.ts`                |
-| Event processing   | `packages/backend/src/ingestion/processEventBatch.ts` |
-| Ingestion route    | `packages/backend/src/routes/ingestion.ts`            |
-| OTel route         | `packages/backend/src/routes/otel.ts`                 |
-| Auth config        | `packages/frontend/src/server/auth.ts`                |
-| tRPC proxy         | `packages/frontend/src/app/api/trpc/[trpc]/route.ts`  |
-| Realtime pub/sub   | `packages/backend/src/realtime/pubsub.ts`             |
-| Realtime router    | `packages/backend/src/trpc/routers/realtime.ts`       |
-| WS auth endpoint   | `packages/frontend/src/app/api/ws-auth/route.ts`      |
-| Realtime hooks     | `packages/frontend/src/lib/use-realtime.ts`           |
-| Trace components   | `packages/frontend/src/components/trace/`             |
+| Purpose            | Path                                                        |
+| ------------------ | ----------------------------------------------------------- |
+| Prisma schema      | `packages/shared/prisma/schema.prisma`                      |
+| Prisma config      | `packages/shared/prisma.config.ts`                          |
+| DB client          | `packages/shared/src/db.ts`                                 |
+| Redis client       | `packages/shared/src/redis.ts`                              |
+| Ingestion schemas  | `packages/shared/src/schemas/ingestion.ts`                  |
+| API auth           | `packages/shared/src/auth/apiAuth.ts`                       |
+| Backend entrypoint | `packages/backend/src/index.ts`                             |
+| tRPC router        | `packages/backend/src/trpc/router.ts`                       |
+| tRPC context       | `packages/backend/src/trpc/context.ts`                      |
+| Tools tRPC router  | `packages/backend/src/trpc/routers/tools.ts`                |
+| Tools WS handler   | `packages/backend/src/routes/tools-ws.ts`                   |
+| Event processing   | `packages/backend/src/ingestion/processEventBatch.ts`       |
+| Ingestion route    | `packages/backend/src/routes/ingestion.ts`                  |
+| OTel route         | `packages/backend/src/routes/otel.ts`                       |
+| Auth config        | `packages/frontend/src/server/auth.ts`                      |
+| tRPC proxy         | `packages/frontend/src/app/api/trpc/[trpc]/route.ts`        |
+| Realtime pub/sub   | `packages/backend/src/realtime/pubsub.ts`                   |
+| Realtime router    | `packages/backend/src/trpc/routers/realtime.ts`             |
+| WS auth endpoint   | `packages/frontend/src/app/api/ws-auth/route.ts`            |
+| Realtime hooks     | `packages/frontend/src/lib/use-realtime.ts`                 |
+| Trace components   | `packages/frontend/src/components/trace/`                   |
+| Tool re-run modal  | `packages/frontend/src/components/trace/ToolRerunModal.tsx` |
+| Tools page         | `packages/frontend/src/app/(dashboard)/tools/page.tsx`      |
 
 ## Development Commands
 
@@ -64,7 +71,7 @@ pnpm --filter @lightrace/backend dev     # Backend only (port 3002)
 - **Frontend**: Next.js 15 (App Router), shadcn/ui + Tailwind CSS v4
 - **Backend**: Hono + tRPC v11 (fetch adapter + WebSocket subscriptions)
 - **Auth**: Auth.js v5 (credentials provider, JWT strategy)
-- **ORM**: Prisma 6 + PostgreSQL
+- **ORM**: Prisma 7 + PostgreSQL
 - **Cache/PubSub**: Redis (ioredis)
 - **Validation**: Zod v3
 - **Testing**: Vitest
@@ -75,11 +82,32 @@ pnpm --filter @lightrace/backend dev     # Backend only (port 3002)
 
 - PostgreSQL on port 5435 (docker-compose)
 - Redis on port 6379 (docker-compose)
-- 6 models: User, Project, ApiKey, Trace, Observation, Score
+- 7 models: User, Project, ApiKey, Trace, Observation, Score, ToolRegistration
 - Demo login: `demo@lightrace.dev` / `password`
 - Demo API keys: `pk-lt-demo` / `sk-lt-demo`
 
 ## Environment Variables
+
+Each package has its own `.env` file (copy from `.env.example` in each package directory):
+
+**`packages/shared/.env`:**
+
+```
+DATABASE_URL    — Postgres connection string
+REDIS_URL       — Redis connection string
+```
+
+**`packages/backend/.env`:**
+
+```
+DATABASE_URL    — Postgres connection string
+REDIS_URL       — Redis connection string
+PORT            — Backend HTTP port (default 3002)
+WS_PORT         — Backend WebSocket port (default 3003)
+INTERNAL_SECRET — Shared secret between frontend proxy and backend
+```
+
+**`packages/frontend/.env`:**
 
 ```
 DATABASE_URL    — Postgres connection string
@@ -89,7 +117,6 @@ AUTH_URL        — Frontend URL for Auth.js
 NEXTAUTH_URL    — Same as AUTH_URL
 BACKEND_URL     — Backend URL (frontend uses this to proxy tRPC)
 INTERNAL_SECRET — Shared secret between frontend proxy and backend
-PORT            — Backend HTTP port (default 3002)
 WS_PORT         — Backend WebSocket port (default 3003)
 ```
 
