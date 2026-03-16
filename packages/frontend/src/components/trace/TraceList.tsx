@@ -97,7 +97,7 @@ export function TraceList() {
               {!isLoading && traces.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
-                    No traces yet. Send traces using the Langfuse SDK.
+                    No traces yet. Send traces using the Lightrace SDK.
                   </td>
                 </tr>
               )}

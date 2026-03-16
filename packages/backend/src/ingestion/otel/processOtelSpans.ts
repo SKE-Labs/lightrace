@@ -1,6 +1,6 @@
 import { db } from "@lightrace/shared/db";
 import { ObservationType, ObservationLevel } from "@prisma/client";
-import { LangfuseOtelSpanAttributes } from "./attributes";
+import { LangfuseOtelSpanAttributes, LightraceOtelSpanAttributes } from "./attributes";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -126,6 +126,7 @@ function parseLevel(level?: unknown): ObservationLevel {
 
 function extractUserId(attrs: Record<string, unknown>): string | null {
   for (const key of [
+    LightraceOtelSpanAttributes.TRACE_USER_ID,
     LangfuseOtelSpanAttributes.TRACE_COMPAT_USER_ID,
     LangfuseOtelSpanAttributes.TRACE_USER_ID,
   ]) {
@@ -136,6 +137,7 @@ function extractUserId(attrs: Record<string, unknown>): string | null {
 
 function extractSessionId(attrs: Record<string, unknown>): string | null {
   for (const key of [
+    LightraceOtelSpanAttributes.TRACE_SESSION_ID,
     LangfuseOtelSpanAttributes.TRACE_COMPAT_SESSION_ID,
     LangfuseOtelSpanAttributes.TRACE_SESSION_ID,
     "gen_ai.conversation.id",
@@ -147,6 +149,7 @@ function extractSessionId(attrs: Record<string, unknown>): string | null {
 
 function extractModelName(attrs: Record<string, unknown>): string | null {
   for (const key of [
+    LightraceOtelSpanAttributes.OBSERVATION_MODEL,
     LangfuseOtelSpanAttributes.OBSERVATION_MODEL,
     "gen_ai.response.model",
     "gen_ai.request.model",
@@ -161,7 +164,9 @@ function extractModelName(attrs: Record<string, unknown>): string | null {
 }
 
 function extractObservationType(attrs: Record<string, unknown>): ObservationType {
-  const explicitType = attrs[LangfuseOtelSpanAttributes.OBSERVATION_TYPE];
+  const explicitType =
+    attrs[LightraceOtelSpanAttributes.OBSERVATION_TYPE] ??
+    attrs[LangfuseOtelSpanAttributes.OBSERVATION_TYPE];
   if (explicitType) {
     const upper = String(explicitType).toUpperCase();
     if (upper === "GENERATION") return ObservationType.GENERATION;
@@ -186,7 +191,9 @@ function extractUsageDetails(attrs: Record<string, unknown>): {
   completionTokens: number;
   totalTokens: number;
 } {
-  const rawUsage = attrs[LangfuseOtelSpanAttributes.OBSERVATION_USAGE_DETAILS];
+  const rawUsage =
+    attrs[LightraceOtelSpanAttributes.OBSERVATION_USAGE_DETAILS] ??
+    attrs[LangfuseOtelSpanAttributes.OBSERVATION_USAGE_DETAILS];
   if (rawUsage) {
     const usage = safeJsonParse(rawUsage) as Record<string, number>;
     if (typeof usage === "object" && usage !== null) {
@@ -219,7 +226,9 @@ function extractCostDetails(attrs: Record<string, unknown>): {
   outputCost: number | null;
   totalCost: number | null;
 } {
-  const rawCost = attrs[LangfuseOtelSpanAttributes.OBSERVATION_COST_DETAILS];
+  const rawCost =
+    attrs[LightraceOtelSpanAttributes.OBSERVATION_COST_DETAILS] ??
+    attrs[LangfuseOtelSpanAttributes.OBSERVATION_COST_DETAILS];
   if (rawCost) {
     const cost = safeJsonParse(rawCost) as Record<string, number>;
     if (typeof cost === "object" && cost !== null) {
@@ -234,7 +243,10 @@ function extractCostDetails(attrs: Record<string, unknown>): {
 }
 
 function extractTags(attrs: Record<string, unknown>): string[] {
-  const raw = attrs[LangfuseOtelSpanAttributes.TRACE_TAGS] ?? attrs["langfuse.tags"];
+  const raw =
+    attrs[LightraceOtelSpanAttributes.TRACE_TAGS] ??
+    attrs[LangfuseOtelSpanAttributes.TRACE_TAGS] ??
+    attrs["langfuse.tags"];
   if (!raw) return [];
   if (Array.isArray(raw)) return raw.map(String);
   if (typeof raw === "string") {
@@ -246,19 +258,28 @@ function extractTags(attrs: Record<string, unknown>): string[] {
 }
 
 function extractPublic(attrs: Record<string, unknown>): boolean {
-  const value = attrs[LangfuseOtelSpanAttributes.TRACE_PUBLIC] ?? attrs["langfuse.public"];
+  const value =
+    attrs[LightraceOtelSpanAttributes.TRACE_PUBLIC] ??
+    attrs[LangfuseOtelSpanAttributes.TRACE_PUBLIC] ??
+    attrs["langfuse.public"];
   if (value == null) return false;
   return value === true || value === "true";
 }
 
 function extractMetadata(attrs: Record<string, unknown>, prefix: string): unknown {
-  const raw = attrs[prefix];
+  // Map langfuse prefixes to their lightrace equivalents
+  const lightracePrefix = prefix
+    .replace("langfuse.trace.metadata", LightraceOtelSpanAttributes.TRACE_METADATA)
+    .replace("langfuse.observation.metadata", LightraceOtelSpanAttributes.OBSERVATION_METADATA);
+  const raw = attrs[lightracePrefix] ?? attrs[prefix];
   if (!raw) return undefined;
   return safeJsonParse(raw);
 }
 
 function extractCompletionStartTime(attrs: Record<string, unknown>): Date | null {
-  const raw = attrs[LangfuseOtelSpanAttributes.OBSERVATION_COMPLETION_START_TIME];
+  const raw =
+    attrs[LightraceOtelSpanAttributes.OBSERVATION_COMPLETION_START_TIME] ??
+    attrs[LangfuseOtelSpanAttributes.OBSERVATION_COMPLETION_START_TIME];
   if (!raw) return null;
   try {
     let value = raw;
@@ -274,6 +295,14 @@ function extractCompletionStartTime(attrs: Record<string, unknown>): Date | null
 
 function hasTraceUpdates(attrs: Record<string, unknown>): boolean {
   return !!(
+    attrs[LightraceOtelSpanAttributes.TRACE_NAME] ||
+    attrs[LightraceOtelSpanAttributes.TRACE_USER_ID] ||
+    attrs[LightraceOtelSpanAttributes.TRACE_SESSION_ID] ||
+    attrs[LightraceOtelSpanAttributes.TRACE_TAGS] ||
+    attrs[LightraceOtelSpanAttributes.TRACE_INPUT] ||
+    attrs[LightraceOtelSpanAttributes.TRACE_OUTPUT] ||
+    attrs[LightraceOtelSpanAttributes.TRACE_METADATA] ||
+    attrs[LightraceOtelSpanAttributes.TRACE_PUBLIC] ||
     attrs[LangfuseOtelSpanAttributes.TRACE_NAME] ||
     attrs[LangfuseOtelSpanAttributes.TRACE_USER_ID] ||
     attrs[LangfuseOtelSpanAttributes.TRACE_COMPAT_USER_ID] ||
@@ -310,26 +339,49 @@ function buildTraceUpdate(
   if (userId) update.userId = userId;
   const sessionId = extractSessionId(attrs);
   if (sessionId) update.sessionId = sessionId;
-  if (attrs[LangfuseOtelSpanAttributes.TRACE_METADATA]) {
+  if (
+    attrs[LightraceOtelSpanAttributes.TRACE_METADATA] ||
+    attrs[LangfuseOtelSpanAttributes.TRACE_METADATA]
+  ) {
     update.metadata = extractMetadata(attrs, LangfuseOtelSpanAttributes.TRACE_METADATA);
   }
-  if (attrs[LangfuseOtelSpanAttributes.TRACE_INPUT]) {
-    update.input = safeJsonParse(attrs[LangfuseOtelSpanAttributes.TRACE_INPUT]);
+  if (
+    attrs[LightraceOtelSpanAttributes.TRACE_INPUT] ||
+    attrs[LangfuseOtelSpanAttributes.TRACE_INPUT]
+  ) {
+    update.input = safeJsonParse(
+      attrs[LightraceOtelSpanAttributes.TRACE_INPUT] ??
+        attrs[LangfuseOtelSpanAttributes.TRACE_INPUT],
+    );
   }
-  if (attrs[LangfuseOtelSpanAttributes.TRACE_OUTPUT]) {
-    update.output = safeJsonParse(attrs[LangfuseOtelSpanAttributes.TRACE_OUTPUT]);
+  if (
+    attrs[LightraceOtelSpanAttributes.TRACE_OUTPUT] ||
+    attrs[LangfuseOtelSpanAttributes.TRACE_OUTPUT]
+  ) {
+    update.output = safeJsonParse(
+      attrs[LightraceOtelSpanAttributes.TRACE_OUTPUT] ??
+        attrs[LangfuseOtelSpanAttributes.TRACE_OUTPUT],
+    );
   }
-  if (attrs[LangfuseOtelSpanAttributes.TRACE_TAGS]) {
+  if (
+    attrs[LightraceOtelSpanAttributes.TRACE_TAGS] ||
+    attrs[LangfuseOtelSpanAttributes.TRACE_TAGS]
+  ) {
     update.tags = extractTags(attrs);
   }
-  if (attrs[LangfuseOtelSpanAttributes.TRACE_PUBLIC] != null) {
+  if (
+    attrs[LightraceOtelSpanAttributes.TRACE_PUBLIC] != null ||
+    attrs[LangfuseOtelSpanAttributes.TRACE_PUBLIC] != null
+  ) {
     update.public = extractPublic(attrs);
   }
-  if (attrs[LangfuseOtelSpanAttributes.RELEASE]) {
-    update.release = attrs[LangfuseOtelSpanAttributes.RELEASE] as string;
+  if (attrs[LightraceOtelSpanAttributes.RELEASE] || attrs[LangfuseOtelSpanAttributes.RELEASE]) {
+    update.release = (attrs[LightraceOtelSpanAttributes.RELEASE] ??
+      attrs[LangfuseOtelSpanAttributes.RELEASE]) as string;
   }
-  if (attrs[LangfuseOtelSpanAttributes.VERSION]) {
-    update.version = attrs[LangfuseOtelSpanAttributes.VERSION] as string;
+  if (attrs[LightraceOtelSpanAttributes.VERSION] || attrs[LangfuseOtelSpanAttributes.VERSION]) {
+    update.version = (attrs[LightraceOtelSpanAttributes.VERSION] ??
+      attrs[LangfuseOtelSpanAttributes.VERSION]) as string;
   }
   return update;
 }
@@ -379,11 +431,16 @@ async function processSpan(
   const startTime = startTimeISO ? new Date(startTimeISO) : new Date();
   const endTime = endTimeISO ? new Date(endTimeISO) : null;
 
-  const isRootSpan = !parentSpanId || String(attrs[LangfuseOtelSpanAttributes.AS_ROOT]) === "true";
+  const isRootSpan =
+    !parentSpanId ||
+    String(attrs[LightraceOtelSpanAttributes.AS_ROOT]) === "true" ||
+    String(attrs[LangfuseOtelSpanAttributes.AS_ROOT]) === "true";
 
   if (isRootSpan || hasTraceUpdates(attrs)) {
     const traceName =
-      (attrs[LangfuseOtelSpanAttributes.TRACE_NAME] as string) ?? (isRootSpan ? span.name : null);
+      (attrs[LightraceOtelSpanAttributes.TRACE_NAME] as string) ??
+      (attrs[LangfuseOtelSpanAttributes.TRACE_NAME] as string) ??
+      (isRootSpan ? span.name : null);
 
     await db.trace.upsert({
       where: { id: traceId },
@@ -395,12 +452,26 @@ async function processSpan(
         userId: extractUserId(attrs),
         sessionId: extractSessionId(attrs),
         metadata: extractMetadata(attrs, LangfuseOtelSpanAttributes.TRACE_METADATA) ?? undefined,
-        input: safeJsonParse(attrs[LangfuseOtelSpanAttributes.TRACE_INPUT]) ?? undefined,
-        output: safeJsonParse(attrs[LangfuseOtelSpanAttributes.TRACE_OUTPUT]) ?? undefined,
+        input:
+          safeJsonParse(
+            attrs[LightraceOtelSpanAttributes.TRACE_INPUT] ??
+              attrs[LangfuseOtelSpanAttributes.TRACE_INPUT],
+          ) ?? undefined,
+        output:
+          safeJsonParse(
+            attrs[LightraceOtelSpanAttributes.TRACE_OUTPUT] ??
+              attrs[LangfuseOtelSpanAttributes.TRACE_OUTPUT],
+          ) ?? undefined,
         tags: extractTags(attrs),
         public: extractPublic(attrs),
-        release: (attrs[LangfuseOtelSpanAttributes.RELEASE] as string) ?? null,
-        version: (attrs[LangfuseOtelSpanAttributes.VERSION] as string) ?? null,
+        release:
+          (attrs[LightraceOtelSpanAttributes.RELEASE] as string) ??
+          (attrs[LangfuseOtelSpanAttributes.RELEASE] as string) ??
+          null,
+        version:
+          (attrs[LightraceOtelSpanAttributes.VERSION] as string) ??
+          (attrs[LangfuseOtelSpanAttributes.VERSION] as string) ??
+          null,
       },
       update: buildTraceUpdate(attrs, traceName),
     });
@@ -412,8 +483,10 @@ async function processSpan(
   const usage = extractUsageDetails(attrs);
   const costs = extractCostDetails(attrs);
   const level =
-    parseLevel(attrs[LangfuseOtelSpanAttributes.OBSERVATION_LEVEL]) ??
-    (span.status?.code === 2 ? ObservationLevel.ERROR : ObservationLevel.DEFAULT);
+    parseLevel(
+      attrs[LightraceOtelSpanAttributes.OBSERVATION_LEVEL] ??
+        attrs[LangfuseOtelSpanAttributes.OBSERVATION_LEVEL],
+    ) ?? (span.status?.code === 2 ? ObservationLevel.ERROR : ObservationLevel.DEFAULT);
 
   const observationData = {
     traceId,
@@ -422,15 +495,27 @@ async function processSpan(
     name: span.name ?? null,
     startTime,
     endTime,
-    input: safeJsonParse(attrs[LangfuseOtelSpanAttributes.OBSERVATION_INPUT]) ?? undefined,
-    output: safeJsonParse(attrs[LangfuseOtelSpanAttributes.OBSERVATION_OUTPUT]) ?? undefined,
+    input:
+      safeJsonParse(
+        attrs[LightraceOtelSpanAttributes.OBSERVATION_INPUT] ??
+          attrs[LangfuseOtelSpanAttributes.OBSERVATION_INPUT],
+      ) ?? undefined,
+    output:
+      safeJsonParse(
+        attrs[LightraceOtelSpanAttributes.OBSERVATION_OUTPUT] ??
+          attrs[LangfuseOtelSpanAttributes.OBSERVATION_OUTPUT],
+      ) ?? undefined,
     metadata: extractMetadata(attrs, LangfuseOtelSpanAttributes.OBSERVATION_METADATA) ?? undefined,
     model: extractModelName(attrs),
     modelParameters:
-      safeJsonParse(attrs[LangfuseOtelSpanAttributes.OBSERVATION_MODEL_PARAMETERS]) ?? undefined,
+      safeJsonParse(
+        attrs[LightraceOtelSpanAttributes.OBSERVATION_MODEL_PARAMETERS] ??
+          attrs[LangfuseOtelSpanAttributes.OBSERVATION_MODEL_PARAMETERS],
+      ) ?? undefined,
     parentObservationId: parentSpanId,
     level,
     statusMessage:
+      (attrs[LightraceOtelSpanAttributes.OBSERVATION_STATUS_MESSAGE] as string) ??
       (attrs[LangfuseOtelSpanAttributes.OBSERVATION_STATUS_MESSAGE] as string) ??
       span.status?.message ??
       null,
@@ -441,7 +526,10 @@ async function processSpan(
     inputCost: costs.inputCost,
     outputCost: costs.outputCost,
     totalCost: costs.totalCost,
-    version: (attrs[LangfuseOtelSpanAttributes.VERSION] as string) ?? null,
+    version:
+      (attrs[LightraceOtelSpanAttributes.VERSION] as string) ??
+      (attrs[LangfuseOtelSpanAttributes.VERSION] as string) ??
+      null,
   };
 
   await db.observation.upsert({

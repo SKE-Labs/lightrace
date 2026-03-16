@@ -212,9 +212,10 @@ export async function invokeToolOnAgent(params: {
   projectId: string;
   toolName: string;
   input: unknown;
+  state?: unknown;
   timeoutMs?: number;
 }): Promise<InvokeResult> {
-  const { projectId, toolName, input, timeoutMs = 30_000 } = params;
+  const { projectId, toolName, input, state, timeoutMs = 30_000 } = params;
 
   // Find a connected agent that has this tool
   let targetAgent: ConnectedAgent | null = null;
@@ -254,6 +255,7 @@ export async function invokeToolOnAgent(params: {
         nonce,
         tool: toolName,
         input,
+        state: state ?? null,
         signature,
       }),
     );

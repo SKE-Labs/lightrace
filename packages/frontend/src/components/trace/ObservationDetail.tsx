@@ -141,6 +141,11 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
             originalInput={observation.input}
             originalOutput={observation.output}
             observationId={observation.id}
+            context={
+              (observation.metadata as Record<string, unknown> | null)?.__lightrace_context as
+                | Record<string, unknown>
+                | undefined
+            }
           />
         )}
 

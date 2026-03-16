@@ -1,15 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wrench, Wifi, WifiOff } from "lucide-react";
+import { Wrench, Wifi, WifiOff, Play } from "lucide-react";
 import { JsonViewer } from "@/components/trace/JsonViewer";
+import { ToolRerunModal } from "@/components/trace/ToolRerunModal";
 
 export default function ToolsSettingsPage() {
   const { data: tools, isLoading } = trpc.tools.list.useQuery(undefined, {
     refetchInterval: 10_000,
   });
+  const [invokeTarget, setInvokeTarget] = useState<string | null>(null);
 
   return (
     <div className="flex h-full flex-col">
@@ -51,21 +55,34 @@ export default function ToolsSettingsPage() {
                         <Wrench className="size-4" />
                         {tool.toolName}
                       </CardTitle>
-                      <Badge
-                        variant="outline"
-                        className={`text-xs font-mono gap-1 ${
-                          tool.status === "online"
-                            ? "bg-green-500/15 text-green-800 dark:text-green-400 border-green-500/30"
-                            : "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {tool.status === "online" ? (
-                          <Wifi className="size-3" />
-                        ) : (
-                          <WifiOff className="size-3" />
+                      <div className="flex items-center gap-2">
+                        {tool.status === "online" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1 text-xs h-7"
+                            onClick={() => setInvokeTarget(tool.toolName)}
+                          >
+                            <Play className="size-3" />
+                            Invoke
+                          </Button>
                         )}
-                        {tool.status}
-                      </Badge>
+                        <Badge
+                          variant="outline"
+                          className={`text-xs font-mono gap-1 ${
+                            tool.status === "online"
+                              ? "bg-green-500/15 text-green-800 dark:text-green-400 border-green-500/30"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {tool.status === "online" ? (
+                            <Wifi className="size-3" />
+                          ) : (
+                            <WifiOff className="size-3" />
+                          )}
+                          {tool.status}
+                        </Badge>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-2">
@@ -92,6 +109,19 @@ export default function ToolsSettingsPage() {
           )}
         </div>
       </div>
+
+      {/* Invoke modal for standalone tool invocation */}
+      {invokeTarget && (
+        <ToolRerunModal
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) setInvokeTarget(null);
+          }}
+          toolName={invokeTarget}
+          originalInput={{}}
+          originalOutput={null}
+        />
+      )}
     </div>
   );
 }

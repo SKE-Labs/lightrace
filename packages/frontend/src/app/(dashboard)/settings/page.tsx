@@ -71,7 +71,7 @@ export default function SettingsPage() {
             <div>
               <h2 className="text-sm font-medium">API Keys</h2>
               <p className="text-xs text-muted-foreground mt-1">
-                Use these keys with the Langfuse SDK to send traces.
+                Use these keys with the Lightrace SDK to send traces.
               </p>
             </div>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -122,9 +122,9 @@ export default function SettingsPage() {
                     <div>
                       <label className="text-xs text-muted-foreground">SDK Usage</label>
                       <pre className="mt-1 rounded bg-muted p-3 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">
-                        {`from langfuse import Langfuse
+                        {`from lightrace import Lightrace
 
-langfuse = Langfuse(
+lt = Lightrace(
     public_key="${newKeyResult.publicKey}",
     secret_key="${newKeyResult.secretKey}",
     host="http://localhost:3002"

@@ -36,6 +36,7 @@ export const toolsRouter = router({
       z.object({
         toolName: z.string(),
         input: z.unknown(),
+        state: z.unknown().optional(),
         observationId: z.string().optional(),
         timeoutMs: z.number().min(1000).max(120_000).default(30_000),
       }),
@@ -46,6 +47,7 @@ export const toolsRouter = router({
           projectId: DEMO_PROJECT_ID,
           toolName: input.toolName,
           input: input.input,
+          state: input.state,
           timeoutMs: input.timeoutMs,
         });
 

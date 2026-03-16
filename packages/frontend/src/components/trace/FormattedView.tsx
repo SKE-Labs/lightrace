@@ -631,6 +631,41 @@ function PathValueTable({ data }: { data: unknown }) {
   );
 }
 
+// --- LLM Input/Output Detection ---
+
+function detectLLMInput(
+  data: unknown,
+): { messages?: ChatMessage[]; remainder?: Record<string, unknown> } | null {
+  if (typeof data !== "object" || data === null || Array.isArray(data)) return null;
+  const obj = data as Record<string, unknown>;
+  if (isChatML(obj.messages)) {
+    const { messages, ...rest } = obj;
+    return {
+      messages: messages as ChatMessage[],
+      remainder: Object.keys(rest).length > 0 ? rest : undefined,
+    };
+  }
+  return null;
+}
+
+function detectLLMOutput(data: unknown): ChatMessage | null {
+  if (typeof data !== "object" || data === null || Array.isArray(data)) return null;
+  const obj = data as Record<string, unknown>;
+  // OpenAI ChatCompletion: { choices: [{ message: { role, content } }] }
+  if (Array.isArray(obj.choices) && obj.choices.length > 0) {
+    const choice = obj.choices[0] as Record<string, unknown> | undefined;
+    const msg = choice?.message;
+    if (msg && typeof msg === "object" && "role" in (msg as Record<string, unknown>)) {
+      return msg as ChatMessage;
+    }
+  }
+  // Already a single message: { role, content }
+  if ("role" in obj && ("content" in obj || "tool_calls" in obj)) {
+    return obj as ChatMessage;
+  }
+  return null;
+}
+
 // --- Main Component ---
 
 function tryParseJson(str: string): unknown | undefined {
@@ -689,6 +724,23 @@ export function FormattedView({ data }: FormattedViewProps) {
     "role" in normalized
   ) {
     return <ChatMLView messages={[normalized as ChatMessage]} />;
+  }
+
+  // Detect LLM input wrapper (e.g., { messages: [...], model: "..." })
+  const llmInput = detectLLMInput(normalized);
+  if (llmInput?.messages) {
+    return (
+      <div className="space-y-3">
+        <ChatMLView messages={llmInput.messages} />
+        {llmInput.remainder && <PathValueTable data={llmInput.remainder} />}
+      </div>
+    );
+  }
+
+  // Detect LLM output wrapper (e.g., OpenAI ChatCompletion response)
+  const llmOutput = detectLLMOutput(normalized);
+  if (llmOutput) {
+    return <ChatMLView messages={[llmOutput]} />;
   }
 
   // Everything else: path/value table

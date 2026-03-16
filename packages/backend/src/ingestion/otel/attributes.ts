@@ -41,3 +41,31 @@ export enum LangfuseOtelSpanAttributes {
   TRACE_COMPAT_USER_ID = "langfuse.user.id",
   TRACE_COMPAT_SESSION_ID = "langfuse.session.id",
 }
+
+export enum LightraceOtelSpanAttributes {
+  TRACE_NAME = "lightrace.trace.name",
+  TRACE_USER_ID = "lightrace.trace.user_id",
+  TRACE_SESSION_ID = "lightrace.trace.session_id",
+  TRACE_TAGS = "lightrace.trace.tags",
+  TRACE_PUBLIC = "lightrace.trace.public",
+  TRACE_METADATA = "lightrace.trace.metadata",
+  TRACE_INPUT = "lightrace.trace.input",
+  TRACE_OUTPUT = "lightrace.trace.output",
+
+  OBSERVATION_TYPE = "lightrace.observation.type",
+  OBSERVATION_METADATA = "lightrace.observation.metadata",
+  OBSERVATION_LEVEL = "lightrace.observation.level",
+  OBSERVATION_STATUS_MESSAGE = "lightrace.observation.status_message",
+  OBSERVATION_INPUT = "lightrace.observation.input",
+  OBSERVATION_OUTPUT = "lightrace.observation.output",
+
+  OBSERVATION_COMPLETION_START_TIME = "lightrace.observation.completion_start_time",
+  OBSERVATION_MODEL = "lightrace.observation.model",
+  OBSERVATION_MODEL_PARAMETERS = "lightrace.observation.model_parameters",
+  OBSERVATION_USAGE_DETAILS = "lightrace.observation.usage_details",
+  OBSERVATION_COST_DETAILS = "lightrace.observation.cost_details",
+
+  RELEASE = "lightrace.release",
+  VERSION = "lightrace.version",
+  AS_ROOT = "lightrace.internal.as_root",
+}
