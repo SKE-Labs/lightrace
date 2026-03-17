@@ -63,9 +63,19 @@ model Trace {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
+  // Denormalized aggregates (maintained by ingestion)
+  totalTokens      Int              @default(0) @map("total_tokens")
+  totalCost        Float?           @map("total_cost")
+  latencyMs        Int?             @map("latency_ms")
+  primaryModel     String?          @map("primary_model")
+  observationCount Int              @default(0) @map("observation_count")
+  level            ObservationLevel @default(DEFAULT)
+
   observations Observation[]
 
   @@index([projectId, timestamp(sort: Desc)])
+  @@index([projectId, level, timestamp(sort: Desc)])
+  @@index([projectId, userId])
   @@index([sessionId])
   @@index([name])
   @@map("traces")
@@ -116,6 +126,8 @@ model Observation {
   updatedAt           DateTime         @default(now()) @updatedAt @map("updated_at")
 
   @@index([traceId])
+  @@index([traceId, type])
+  @@index([traceId, level])
   @@index([projectId, startTime(sort: Desc)])
   @@index([parentObservationId])
   @@map("observations")

@@ -4,7 +4,9 @@ import {
   normalizeUsage,
   type IngestionEvent,
 } from "@lightrace/shared/schemas/ingestion";
-import { ObservationType, ObservationLevel } from "@prisma/client";
+import { ObservationType, ObservationLevel, Prisma } from "@prisma/client";
+
+type TxClient = Prisma.TransactionClient;
 
 interface BatchResult {
   successes: { id: string; status: number }[];
@@ -27,27 +29,47 @@ function parseLevel(level?: string): ObservationLevel {
   return ObservationLevel.DEFAULT;
 }
 
-async function ensureTraceExists(traceId: string, projectId: string) {
-  const existing = await db.trace.findUnique({ where: { id: traceId } });
-  if (!existing) {
-    await db.trace.create({
-      data: {
-        id: traceId,
-        projectId,
-        timestamp: new Date(),
-      },
-    });
-  }
+async function ensureTraceExists(tx: TxClient, traceId: string, projectId: string) {
+  await tx.trace.upsert({
+    where: { id: traceId },
+    create: { id: traceId, projectId, timestamp: new Date() },
+    update: {},
+  });
+}
+
+async function updateTraceAggregates(tx: TxClient, traceId: string) {
+  await tx.$queryRaw`
+    UPDATE traces SET
+      total_tokens = COALESCE((SELECT SUM(total_tokens) FROM observations WHERE trace_id = ${traceId}), 0),
+      total_cost = (SELECT SUM(total_cost) FROM observations WHERE trace_id = ${traceId}),
+      latency_ms = (
+        SELECT (EXTRACT(EPOCH FROM (MAX(COALESCE(end_time, start_time)) - MIN(start_time))) * 1000)::int
+        FROM observations WHERE trace_id = ${traceId}
+      ),
+      observation_count = (SELECT COUNT(*)::int FROM observations WHERE trace_id = ${traceId}),
+      primary_model = (SELECT model FROM observations WHERE trace_id = ${traceId} AND type = 'GENERATION' AND model IS NOT NULL LIMIT 1),
+      level = COALESCE(
+        (SELECT CASE
+          WHEN EXISTS (SELECT 1 FROM observations WHERE trace_id = ${traceId} AND level = 'ERROR') THEN 'ERROR'::"ObservationLevel"
+          WHEN EXISTS (SELECT 1 FROM observations WHERE trace_id = ${traceId} AND level = 'WARNING') THEN 'WARNING'::"ObservationLevel"
+          ELSE 'DEFAULT'::"ObservationLevel"
+        END),
+        'DEFAULT'::"ObservationLevel"
+      ),
+      updated_at = NOW()
+    WHERE id = ${traceId}
+  `;
 }
 
 async function processTraceCreate(
+  tx: TxClient,
   body: IngestionEvent & { type: "trace-create" },
   projectId: string,
 ) {
   const data = body.body;
   const traceId = data.id ?? body.id;
 
-  await db.trace.upsert({
+  await tx.trace.upsert({
     where: { id: traceId },
     create: {
       id: traceId,
@@ -81,6 +103,7 @@ async function processTraceCreate(
 }
 
 async function processObservation(
+  tx: TxClient,
   event: IngestionEvent,
   projectId: string,
   type: ObservationType,
@@ -90,7 +113,7 @@ async function processObservation(
   const observationId = body.id as string;
   const traceId = (body.traceId as string) ?? event.id;
 
-  await ensureTraceExists(traceId, projectId);
+  await ensureTraceExists(tx, traceId, projectId);
 
   const usage = normalizeUsage(
     "usage" in body ? (body.usage as Parameters<typeof normalizeUsage>[0]) : null,
@@ -128,7 +151,7 @@ async function processObservation(
       updateData.totalCost = usage.totalCost;
     }
 
-    await db.observation.upsert({
+    await tx.observation.upsert({
       where: { id: observationId },
       create: {
         id: observationId,
@@ -158,7 +181,7 @@ async function processObservation(
       update: updateData,
     });
   } else {
-    await db.observation.upsert({
+    await tx.observation.upsert({
       where: { id: observationId },
       create: {
         id: observationId,
@@ -215,6 +238,9 @@ async function processObservation(
       },
     });
   }
+
+  // Update denormalized aggregates on the parent trace
+  await updateTraceAggregates(tx, traceId);
 }
 
 export async function processEventBatch(
@@ -223,75 +249,77 @@ export async function processEventBatch(
 ): Promise<BatchResult> {
   const result: BatchResult = { successes: [], errors: [] };
 
-  for (const rawEvent of rawEvents) {
-    const eventId =
-      typeof rawEvent === "object" && rawEvent !== null && "id" in rawEvent
-        ? (rawEvent as { id: string }).id
-        : "unknown";
+  await db.$transaction(async (tx) => {
+    for (const rawEvent of rawEvents) {
+      const eventId =
+        typeof rawEvent === "object" && rawEvent !== null && "id" in rawEvent
+          ? (rawEvent as { id: string }).id
+          : "unknown";
 
-    try {
-      const parsed = ingestionEvent.safeParse(rawEvent);
-      if (!parsed.success) {
-        result.errors.push({
-          id: eventId,
-          status: 400,
-          message: "Validation failed",
-          error: parsed.error.message,
-        });
-        continue;
+      try {
+        const parsed = ingestionEvent.safeParse(rawEvent);
+        if (!parsed.success) {
+          result.errors.push({
+            id: eventId,
+            status: 400,
+            message: "Validation failed",
+            error: parsed.error.message,
+          });
+          continue;
+        }
+
+        const event = parsed.data;
+
+        switch (event.type) {
+          case "trace-create":
+            await processTraceCreate(tx, event, projectId);
+            break;
+          case "span-create":
+            await processObservation(tx, event, projectId, ObservationType.SPAN, false);
+            break;
+          case "span-update":
+            await processObservation(tx, event, projectId, ObservationType.SPAN, true);
+            break;
+          case "generation-create":
+            await processObservation(tx, event, projectId, ObservationType.GENERATION, false);
+            break;
+          case "generation-update":
+            await processObservation(tx, event, projectId, ObservationType.GENERATION, true);
+            break;
+          case "event-create":
+            await processObservation(tx, event, projectId, ObservationType.EVENT, false);
+            break;
+          case "tool-create":
+            await processObservation(tx, event, projectId, ObservationType.TOOL, false);
+            break;
+          case "tool-update":
+            await processObservation(tx, event, projectId, ObservationType.TOOL, true);
+            break;
+          case "chain-create":
+            await processObservation(tx, event, projectId, ObservationType.CHAIN, false);
+            break;
+          case "chain-update":
+            await processObservation(tx, event, projectId, ObservationType.CHAIN, true);
+            break;
+          case "observation-create":
+            await processObservation(tx, event, projectId, ObservationType.SPAN, false);
+            break;
+          case "observation-update":
+            await processObservation(tx, event, projectId, ObservationType.SPAN, true);
+            break;
+          case "sdk-log":
+            // Just acknowledge
+            break;
+        }
+
+        result.successes.push({ id: eventId, status: 201 });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        console.error(`[ingestion] Error processing event ${eventId}:`, message);
+        result.errors.push({ id: eventId, status: 500, message });
       }
-
-      const event = parsed.data;
-
-      switch (event.type) {
-        case "trace-create":
-          await processTraceCreate(event, projectId);
-          break;
-        case "span-create":
-          await processObservation(event, projectId, ObservationType.SPAN, false);
-          break;
-        case "span-update":
-          await processObservation(event, projectId, ObservationType.SPAN, true);
-          break;
-        case "generation-create":
-          await processObservation(event, projectId, ObservationType.GENERATION, false);
-          break;
-        case "generation-update":
-          await processObservation(event, projectId, ObservationType.GENERATION, true);
-          break;
-        case "event-create":
-          await processObservation(event, projectId, ObservationType.EVENT, false);
-          break;
-        case "tool-create":
-          await processObservation(event, projectId, ObservationType.TOOL, false);
-          break;
-        case "tool-update":
-          await processObservation(event, projectId, ObservationType.TOOL, true);
-          break;
-        case "chain-create":
-          await processObservation(event, projectId, ObservationType.CHAIN, false);
-          break;
-        case "chain-update":
-          await processObservation(event, projectId, ObservationType.CHAIN, true);
-          break;
-        case "observation-create":
-          await processObservation(event, projectId, ObservationType.SPAN, false);
-          break;
-        case "observation-update":
-          await processObservation(event, projectId, ObservationType.SPAN, true);
-          break;
-        case "sdk-log":
-          // Just acknowledge
-          break;
-      }
-
-      result.successes.push({ id: eventId, status: 201 });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      console.error(`[ingestion] Error processing event ${eventId}:`, message);
-      result.errors.push({ id: eventId, status: 500, message });
     }
-  }
+  });
 
   return result;
 }

@@ -1,5 +1,7 @@
 import { db } from "@lightrace/shared/db";
-import { ObservationType, ObservationLevel } from "@prisma/client";
+import { ObservationType, ObservationLevel, Prisma } from "@prisma/client";
+
+type TxClient = Prisma.TransactionClient;
 import { LangfuseOtelSpanAttributes, LightraceOtelSpanAttributes } from "./attributes";
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -318,13 +320,36 @@ function hasTraceUpdates(attrs: Record<string, unknown>): boolean {
 
 // ── Ensure trace exists ──────────────────────────────────────────────
 
-async function ensureTraceExists(traceId: string, projectId: string) {
-  const existing = await db.trace.findUnique({ where: { id: traceId } });
-  if (!existing) {
-    await db.trace.create({
-      data: { id: traceId, projectId, timestamp: new Date() },
-    });
-  }
+async function ensureTraceExists(tx: TxClient, traceId: string, projectId: string) {
+  await tx.trace.upsert({
+    where: { id: traceId },
+    create: { id: traceId, projectId, timestamp: new Date() },
+    update: {},
+  });
+}
+
+async function updateTraceAggregates(tx: TxClient, traceId: string) {
+  await tx.$queryRaw`
+    UPDATE traces SET
+      total_tokens = COALESCE((SELECT SUM(total_tokens) FROM observations WHERE trace_id = ${traceId}), 0),
+      total_cost = (SELECT SUM(total_cost) FROM observations WHERE trace_id = ${traceId}),
+      latency_ms = (
+        SELECT (EXTRACT(EPOCH FROM (MAX(COALESCE(end_time, start_time)) - MIN(start_time))) * 1000)::int
+        FROM observations WHERE trace_id = ${traceId}
+      ),
+      observation_count = (SELECT COUNT(*)::int FROM observations WHERE trace_id = ${traceId}),
+      primary_model = (SELECT model FROM observations WHERE trace_id = ${traceId} AND type = 'GENERATION' AND model IS NOT NULL LIMIT 1),
+      level = COALESCE(
+        (SELECT CASE
+          WHEN EXISTS (SELECT 1 FROM observations WHERE trace_id = ${traceId} AND level = 'ERROR') THEN 'ERROR'::"ObservationLevel"
+          WHEN EXISTS (SELECT 1 FROM observations WHERE trace_id = ${traceId} AND level = 'WARNING') THEN 'WARNING'::"ObservationLevel"
+          ELSE 'DEFAULT'::"ObservationLevel"
+        END),
+        'DEFAULT'::"ObservationLevel"
+      ),
+      updated_at = NOW()
+    WHERE id = ${traceId}
+  `;
 }
 
 // ── Trace update builder ─────────────────────────────────────────────
@@ -394,26 +419,29 @@ export async function processOtelResourceSpans(
 ): Promise<void> {
   if (!Array.isArray(resourceSpans) || resourceSpans.length === 0) return;
 
-  for (const resourceSpan of resourceSpans) {
-    if (!resourceSpan) continue;
-    const resourceAttrs = extractAttributes(resourceSpan.resource?.attributes);
+  await db.$transaction(async (tx) => {
+    for (const resourceSpan of resourceSpans) {
+      if (!resourceSpan) continue;
+      const resourceAttrs = extractAttributes(resourceSpan.resource?.attributes);
 
-    for (const scopeSpan of resourceSpan.scopeSpans ?? []) {
-      for (const span of scopeSpan.spans ?? []) {
-        try {
-          await processSpan(span, resourceAttrs, projectId);
-        } catch (error) {
-          console.error(
-            `[otel] Error processing span ${parseId(span.spanId)}:`,
-            error instanceof Error ? error.message : error,
-          );
+      for (const scopeSpan of resourceSpan.scopeSpans ?? []) {
+        for (const span of scopeSpan.spans ?? []) {
+          try {
+            await processSpan(tx, span, resourceAttrs, projectId);
+          } catch (error) {
+            console.error(
+              `[otel] Error processing span ${parseId(span.spanId)}:`,
+              error instanceof Error ? error.message : error,
+            );
+          }
         }
       }
     }
-  }
+  });
 }
 
 async function processSpan(
+  tx: TxClient,
   span: OtelSpan,
   _resourceAttrs: Record<string, unknown>,
   projectId: string,
@@ -442,7 +470,7 @@ async function processSpan(
       (attrs[LangfuseOtelSpanAttributes.TRACE_NAME] as string) ??
       (isRootSpan ? span.name : null);
 
-    await db.trace.upsert({
+    await tx.trace.upsert({
       where: { id: traceId },
       create: {
         id: traceId,
@@ -476,7 +504,7 @@ async function processSpan(
       update: buildTraceUpdate(attrs, traceName),
     });
   } else {
-    await ensureTraceExists(traceId, projectId);
+    await ensureTraceExists(tx, traceId, projectId);
   }
 
   const type = extractObservationType(attrs);
@@ -532,9 +560,12 @@ async function processSpan(
       null,
   };
 
-  await db.observation.upsert({
+  await tx.observation.upsert({
     where: { id: spanId },
     create: { id: spanId, ...observationData },
     update: observationData,
   });
+
+  // Update denormalized aggregates on the parent trace
+  await updateTraceAggregates(tx, traceId);
 }

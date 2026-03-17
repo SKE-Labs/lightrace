@@ -1,9 +1,20 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Brain } from "lucide-react";
 import { MemoizedMarkdown } from "./MemoizedMarkdown";
+
+// --- Role Normalization ---
+
+const ROLE_ALIASES: Record<string, string> = {
+  human: "user",
+  ai: "assistant",
+};
+
+function normalizeRole(role: string): string {
+  return ROLE_ALIASES[role] ?? role;
+}
 
 interface FormattedViewProps {
   data: unknown;
@@ -50,14 +61,20 @@ interface NormalizedToolCall {
   args: unknown;
 }
 
+interface ImageBlock {
+  url: string;
+  alt?: string;
+}
+
 interface ExtractedContent {
   texts: string[];
   thinkings: string[];
   toolUses: NormalizedToolCall[];
+  images: ImageBlock[];
 }
 
 function extractContent(content: ChatMessage["content"]): ExtractedContent {
-  const result: ExtractedContent = { texts: [], thinkings: [], toolUses: [] };
+  const result: ExtractedContent = { texts: [], thinkings: [], toolUses: [], images: [] };
 
   if (content == null) return result;
 
@@ -93,10 +110,16 @@ function extractContent(content: ChatMessage["content"]): ExtractedContent {
           });
           break;
         case "image_url":
-          result.texts.push(`[Image: ${b.image_url?.url ?? "unknown"}]`);
+          if (b.image_url?.url) {
+            result.images.push({ url: b.image_url.url });
+          }
           break;
         case "image":
-          result.texts.push(`[Image: ${b.source?.url ?? b.source?.media_type ?? "base64"}]`);
+          if (b.source?.type === "base64" && b.source.data && b.source.media_type) {
+            result.images.push({ url: `data:${b.source.media_type};base64,${b.source.data}` });
+          } else if (b.source?.url) {
+            result.images.push({ url: b.source.url });
+          }
           break;
         default:
           if (b.type) {
@@ -182,63 +205,6 @@ function getPreviewText(extracted: ExtractedContent, allToolCalls: NormalizedToo
 }
 
 // --- Components ---
-
-function ToolCallBlock({ tc }: { tc: NormalizedToolCall }) {
-  const [expanded, setExpanded] = useState(false);
-  const hasArgs =
-    tc.args != null &&
-    typeof tc.args === "object" &&
-    Object.keys(tc.args as Record<string, unknown>).length > 0;
-  const argsEntries = hasArgs ? Object.entries(tc.args as Record<string, unknown>) : [];
-
-  // Preview: show key names for collapsed view
-  const argsPreview = hasArgs
-    ? argsEntries.map(([k]) => k).join(", ")
-    : typeof tc.args === "string"
-      ? (tc.args as string).slice(0, 80)
-      : "";
-
-  return (
-    <div className="rounded border border-border px-2.5 py-1.5">
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setExpanded(!expanded);
-        }}
-        className="inline-flex items-center gap-1 w-full text-left"
-      >
-        <ChevronIcon expanded={expanded} />
-        <span className="text-xs font-medium text-muted-foreground">{tc.name}</span>
-        {!expanded && argsPreview && (
-          <span className="text-[10px] text-muted-foreground/50 truncate ml-1">
-            ({argsPreview})
-          </span>
-        )}
-        {tc.id && (
-          <span className="text-[10px] text-muted-foreground/50 ml-auto font-mono shrink-0">
-            {tc.id.slice(0, 8)}
-          </span>
-        )}
-      </button>
-      {expanded && hasArgs && (
-        <div className="mt-1.5 overflow-auto">
-          <table className="w-full text-xs">
-            <tbody>
-              {argsEntries.map(([key, value]) => (
-                <TreeRow key={key} label={key} value={value} depth={0} defaultExpanded={false} />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {expanded && !hasArgs && typeof tc.args === "string" && (
-        <pre className="mt-1.5 text-xs text-muted-foreground overflow-auto whitespace-pre-wrap">
-          {tc.args}
-        </pre>
-      )}
-    </div>
-  );
-}
 
 function ToolDefinitionBlock({ content }: { content: Record<string, unknown> }) {
   const [expanded, setExpanded] = useState(false);
@@ -336,14 +302,44 @@ function resolveParamType(prop: Record<string, unknown>): string {
   return "unknown";
 }
 
+function ThinkingBlock({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const firstLine = text.split("\n")[0].trim();
+  const preview = firstLine.length > 100 ? firstLine.slice(0, 100) + "…" : firstLine;
+
+  return (
+    <div className="rounded-r-md border-l-2 border-amber-500/30 bg-amber-500/5 px-3 py-2">
+      <button
+        onClick={() => setOpen(!open)}
+        className="inline-flex items-center gap-1.5 w-full text-left"
+      >
+        <Brain className="size-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+        <span className="text-xs font-medium text-amber-700 dark:text-amber-400">Thinking</span>
+        <ChevronIcon expanded={open} />
+        {!open && <span className="text-xs text-muted-foreground/60 truncate ml-1">{preview}</span>}
+      </button>
+      {open && (
+        <div className="mt-2">
+          <MemoizedMarkdown text={text} className="text-sm text-muted-foreground" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ChatMessageView({
   message,
   toolCallMap,
+  toolResults,
+  forceExpanded,
 }: {
   message: ChatMessage;
   toolCallMap: Map<string, string>;
+  toolResults?: Map<string, ChatMessage>;
+  forceExpanded?: boolean | null;
 }) {
   const extracted = extractContent(message.content);
+  const nRole = normalizeRole(message.role);
   const allToolCalls = normalizeToolCalls(message.tool_calls, extracted.toolUses);
   const textContent = extracted.texts.join("\n");
 
@@ -356,6 +352,13 @@ function ChatMessageView({
 
   const preview = getPreviewText(extracted, allToolCalls);
   const [expanded, setExpanded] = useState(false);
+
+  // Sync with forceExpanded
+  useEffect(() => {
+    if (forceExpanded !== null && forceExpanded !== undefined) {
+      setExpanded(forceExpanded);
+    }
+  }, [forceExpanded]);
 
   return (
     <div className="px-3 py-2">
@@ -378,17 +381,12 @@ function ChatMessageView({
         <div className="mt-2 ml-5 space-y-2">
           {/* Thinking/reasoning */}
           {extracted.thinkings.length > 0 && (
-            <div className="pl-2 border-l-2 border-border">
-              <MemoizedMarkdown
-                text={extracted.thinkings.join("\n\n")}
-                className="text-sm italic text-muted-foreground"
-              />
-            </div>
+            <ThinkingBlock text={extracted.thinkings.join("\n\n")} />
           )}
 
           {/* Text content */}
           {textContent.length > 0 &&
-            (message.role === "assistant" || message.role === "system" ? (
+            (nRole === "assistant" || nRole === "system" ? (
               <MemoizedMarkdown text={textContent} className="text-sm" />
             ) : (
               <div className="text-sm whitespace-pre-wrap break-words leading-relaxed">
@@ -396,12 +394,116 @@ function ChatMessageView({
               </div>
             ))}
 
-          {/* Tool calls */}
+          {/* Images */}
+          {extracted.images.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {extracted.images.map((img, i) => (
+                <img
+                  key={i}
+                  src={img.url}
+                  alt={img.alt ?? "Image"}
+                  className="max-w-[400px] max-h-[300px] rounded-md border border-border object-contain"
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Tool calls (with grouped results) */}
           {allToolCalls.length > 0 && (
             <div className="space-y-1.5">
-              {allToolCalls.map((tc, i) => (
-                <ToolCallBlock key={tc.id ?? i} tc={tc} />
-              ))}
+              {allToolCalls.map((tc, i) => {
+                const resultMsg = tc.id ? toolResults?.get(tc.id) : undefined;
+                return <ToolCallWithResult key={tc.id ?? i} tc={tc} resultMessage={resultMsg} />;
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ToolCallWithResult({
+  tc,
+  resultMessage,
+}: {
+  tc: NormalizedToolCall;
+  resultMessage?: ChatMessage;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const hasArgs =
+    tc.args != null &&
+    typeof tc.args === "object" &&
+    Object.keys(tc.args as Record<string, unknown>).length > 0;
+  const argsEntries = hasArgs ? Object.entries(tc.args as Record<string, unknown>) : [];
+  const argsPreview = hasArgs
+    ? argsEntries.map(([k]) => k).join(", ")
+    : typeof tc.args === "string"
+      ? (tc.args as string).slice(0, 80)
+      : "";
+
+  const resultContent = resultMessage
+    ? typeof resultMessage.content === "string"
+      ? resultMessage.content
+      : JSON.stringify(resultMessage.content, null, 2)
+    : null;
+
+  return (
+    <div className="rounded border border-border px-2.5 py-1.5">
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setExpanded(!expanded);
+        }}
+        className="inline-flex items-center gap-1 w-full text-left"
+      >
+        <ChevronIcon expanded={expanded} />
+        <span className="text-xs font-medium text-muted-foreground">{tc.name}</span>
+        {!expanded && argsPreview && (
+          <span className="text-[10px] text-muted-foreground/50 truncate ml-1">
+            ({argsPreview})
+          </span>
+        )}
+        {tc.id && (
+          <span className="text-[10px] text-muted-foreground/50 ml-auto font-mono shrink-0">
+            {tc.id.slice(0, 8)}
+          </span>
+        )}
+      </button>
+      {expanded && (
+        <div className="mt-1.5 space-y-2">
+          {hasArgs && (
+            <div className="overflow-auto">
+              <table className="w-full text-xs">
+                <tbody>
+                  {argsEntries.map(([key, value]) => (
+                    <TreeRow
+                      key={key}
+                      label={key}
+                      value={value}
+                      depth={0}
+                      defaultExpanded={false}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {!hasArgs && typeof tc.args === "string" && (
+            <pre className="text-xs text-muted-foreground overflow-auto whitespace-pre-wrap">
+              {tc.args}
+            </pre>
+          )}
+          {resultContent && (
+            <div className="border-t border-border pt-1.5">
+              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                Result
+              </span>
+              <div className="mt-1 text-xs whitespace-pre-wrap break-words text-muted-foreground max-h-[200px] overflow-auto">
+                {resultContent}
+              </div>
             </div>
           )}
         </div>
@@ -421,6 +523,9 @@ function isToolDefinitionMessage(msg: ChatMessage): boolean {
 }
 
 function ChatMLView({ messages }: { messages: ChatMessage[] }) {
+  const [forceExpanded, setForceExpanded] = useState<boolean | null>(null);
+  const [expandGen, setExpandGen] = useState(0);
+
   // Build tool_call_id → tool_name mapping
   const toolCallMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -445,22 +550,83 @@ function ChatMLView({ messages }: { messages: ChatMessage[] }) {
     return map;
   }, [messages]);
 
-  // Partition: regular messages vs tool definitions
-  const { regularMessages, toolDefs } = useMemo(() => {
-    const regular: ChatMessage[] = [];
+  // Group tool results with their tool calls and partition tool definitions
+  const { displayMessages, toolResultMap, toolDefs } = useMemo(() => {
+    const display: ChatMessage[] = [];
+    const resultMap = new Map<string, ChatMessage>();
     const defs: ChatMessage[] = [];
-    for (const m of messages) {
-      (isToolDefinitionMessage(m) ? defs : regular).push(m);
+    const consumed = new Set<number>();
+
+    for (let i = 0; i < messages.length; i++) {
+      if (consumed.has(i)) continue;
+      const msg = messages[i];
+
+      if (isToolDefinitionMessage(msg)) {
+        defs.push(msg);
+        continue;
+      }
+
+      // If this is an assistant/ai message with tool_calls, collect following tool results
+      const nRole = normalizeRole(msg.role);
+      const allCalls = normalizeToolCalls(msg.tool_calls, extractContent(msg.content).toolUses);
+      if (nRole === "assistant" && allCalls.length > 0) {
+        const callIds = new Set(allCalls.map((tc) => tc.id).filter(Boolean));
+        // Look ahead for tool result messages
+        let j = i + 1;
+        while (j < messages.length && messages[j].role === "tool" && messages[j].tool_call_id) {
+          const toolMsg = messages[j];
+          if (toolMsg.tool_call_id && callIds.has(toolMsg.tool_call_id)) {
+            resultMap.set(toolMsg.tool_call_id, toolMsg);
+            consumed.add(j);
+          } else {
+            break;
+          }
+          j++;
+        }
+      }
+
+      display.push(msg);
     }
-    return { regularMessages: regular, toolDefs: defs };
+
+    return { displayMessages: display, toolResultMap: resultMap, toolDefs: defs };
   }, [messages]);
 
   return (
     <div className="space-y-3">
+      {/* Expand/Collapse toolbar */}
+      {displayMessages.length > 2 && (
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={() => {
+              setForceExpanded(true);
+              setExpandGen((g) => g + 1);
+            }}
+            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Expand all
+          </button>
+          <button
+            onClick={() => {
+              setForceExpanded(false);
+              setExpandGen((g) => g + 1);
+            }}
+            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Collapse all
+          </button>
+        </div>
+      )}
+
       {/* Messages */}
       <div className="divide-y divide-border rounded-md border border-border">
-        {regularMessages.map((msg, i) => (
-          <ChatMessageView key={i} message={msg} toolCallMap={toolCallMap} />
+        {displayMessages.map((msg, i) => (
+          <ChatMessageView
+            key={`${expandGen}-${i}`}
+            message={msg}
+            toolCallMap={toolCallMap}
+            toolResults={toolResultMap}
+            forceExpanded={forceExpanded}
+          />
         ))}
       </div>
 
@@ -702,13 +868,19 @@ export function FormattedView({ data }: FormattedViewProps) {
     return <span className="text-muted-foreground italic text-sm">null</span>;
   }
 
-  const normalized = normalizeData(data);
+  let normalized = normalizeData(data);
 
   // Plain string that isn't JSON
   if (typeof normalized === "string") {
     return (
       <div className="overflow-auto text-sm whitespace-pre-wrap break-words">{normalized}</div>
     );
+  }
+
+  // Unwrap single-element outer array: [[...messages...]] → [...messages...]
+  // This handles LangGraph's double-nested GENERATION input format
+  if (Array.isArray(normalized) && normalized.length === 1 && Array.isArray(normalized[0])) {
+    normalized = normalized[0];
   }
 
   // ChatML array
@@ -732,7 +904,14 @@ export function FormattedView({ data }: FormattedViewProps) {
     return (
       <div className="space-y-3">
         <ChatMLView messages={llmInput.messages} />
-        {llmInput.remainder && <PathValueTable data={llmInput.remainder} />}
+        {llmInput.remainder && (
+          <div className="space-y-2">
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              State
+            </h3>
+            <PathValueTable data={llmInput.remainder} />
+          </div>
+        )}
       </div>
     );
   }

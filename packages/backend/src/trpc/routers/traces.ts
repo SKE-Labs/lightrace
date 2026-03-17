@@ -6,76 +6,58 @@ export const tracesRouter = router({
     .input(
       z.object({
         limit: z.number().min(1).max(100).default(50),
-        cursor: z.string().nullish(),
+        page: z.number().min(1).default(1),
         search: z.string().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const { limit, cursor, search } = input;
+      const { limit, page, search } = input;
+      const skip = (page - 1) * limit;
 
-      const traces = await ctx.db.trace.findMany({
-        take: limit + 1,
-        cursor: cursor ? { id: cursor } : undefined,
-        orderBy: { timestamp: "desc" },
-        where: search
-          ? {
-              name: { contains: search, mode: "insensitive" },
-            }
-          : undefined,
-        include: {
-          _count: { select: { observations: true } },
-          observations: {
-            select: {
-              totalTokens: true,
-              startTime: true,
-              endTime: true,
-              type: true,
-              totalCost: true,
-              level: true,
-              model: true,
-            },
+      const where = search ? { name: { contains: search, mode: "insensitive" as const } } : {};
+
+      const [traces, totalCount] = await Promise.all([
+        ctx.db.trace.findMany({
+          take: limit,
+          skip,
+          orderBy: { timestamp: "desc" },
+          where,
+          select: {
+            id: true,
+            name: true,
+            timestamp: true,
+            tags: true,
+            totalTokens: true,
+            totalCost: true,
+            latencyMs: true,
+            primaryModel: true,
+            observationCount: true,
+            level: true,
           },
-        },
-      });
+        }),
+        ctx.db.trace.count({ where }),
+      ]);
 
-      let nextCursor: string | undefined;
-      if (traces.length > limit) {
-        const nextItem = traces.pop();
-        nextCursor = nextItem?.id;
-      }
+      const items = traces.map((trace) => ({
+        id: trace.id,
+        name: trace.name,
+        timestamp: trace.timestamp,
+        tags: trace.tags,
+        observationCount: trace.observationCount,
+        totalTokens: trace.totalTokens,
+        totalCost: trace.totalCost && trace.totalCost > 0 ? trace.totalCost : null,
+        latencyMs: trace.latencyMs ?? 0,
+        hasError: trace.level === "ERROR",
+        hasWarning: trace.level === "WARNING",
+        primaryModel: trace.primaryModel,
+      }));
 
-      const items = traces.map((trace) => {
-        const totalTokens = trace.observations.reduce((sum, o) => sum + o.totalTokens, 0);
-        const totalCost = trace.observations.reduce((sum, o) => sum + Number(o.totalCost ?? 0), 0);
-
-        const times = trace.observations
-          .map((o) => o.startTime.getTime())
-          .concat(trace.observations.filter((o) => o.endTime).map((o) => o.endTime!.getTime()));
-        const minTime = times.length > 0 ? Math.min(...times) : trace.timestamp.getTime();
-        const maxTime = times.length > 0 ? Math.max(...times) : trace.timestamp.getTime();
-        const latencyMs = maxTime - minTime;
-
-        const hasError = trace.observations.some((o) => o.level === "ERROR");
-        const hasWarning = !hasError && trace.observations.some((o) => o.level === "WARNING");
-        const primaryModel =
-          trace.observations.find((o) => o.type === "GENERATION" && o.model)?.model ?? null;
-
-        return {
-          id: trace.id,
-          name: trace.name,
-          timestamp: trace.timestamp,
-          tags: trace.tags,
-          observationCount: trace._count.observations,
-          totalTokens,
-          totalCost: totalCost > 0 ? totalCost : null,
-          latencyMs,
-          hasError,
-          hasWarning,
-          primaryModel,
-        };
-      });
-
-      return { items, nextCursor };
+      return {
+        items,
+        totalCount,
+        page,
+        totalPages: Math.ceil(totalCount / limit),
+      };
     }),
 
   byId: protectedProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {

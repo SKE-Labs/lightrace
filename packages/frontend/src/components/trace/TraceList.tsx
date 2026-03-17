@@ -1,28 +1,59 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { useRealtimeTraceUpdates } from "@/lib/use-realtime";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { formatDuration, formatTokens, formatCost, formatRelativeTime } from "@/lib/utils";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const PAGE_SIZE = 20;
+
+function getPageNumbers(current: number, total: number): (number | "ellipsis")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+
+  const pages: (number | "ellipsis")[] = [1];
+
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+
+  if (start > 2) pages.push("ellipsis");
+  for (let i = start; i <= end; i++) pages.push(i);
+  if (end < total - 1) pages.push("ellipsis");
+
+  pages.push(total);
+  return pages;
+}
 
 export function TraceList() {
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
-  // Real-time updates via WebSocket (falls back to polling if WS unavailable)
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  // Real-time updates via WebSocket
   useRealtimeTraceUpdates("demo-project");
 
-  const { data, isLoading, isError, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    trpc.traces.list.useInfiniteQuery(
-      { limit: 50, search: search || undefined },
-      { getNextPageParam: (lastPage) => lastPage.nextCursor, retry: false, refetchInterval: 30000 },
-    );
+  const { data, isLoading, isError, error } = trpc.traces.list.useQuery(
+    { limit: PAGE_SIZE, page, search: search || undefined },
+    { retry: false, refetchInterval: 30000 },
+  );
 
-  const traces = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data]);
+  const traces = data?.items ?? [];
+  const totalPages = data?.totalPages ?? 1;
+  const totalCount = data?.totalCount ?? 0;
+
+  const rangeStart = totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(page * PAGE_SIZE, totalCount);
 
   return (
     <TooltipProvider>
@@ -166,18 +197,56 @@ export function TraceList() {
               ))}
             </tbody>
           </table>
-          {hasNextPage && (
-            <div className="flex justify-center py-4">
-              <button
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-                className="text-sm text-muted-foreground hover:text-foreground"
-              >
-                {isFetchingNextPage ? "Loading..." : "Load more"}
-              </button>
-            </div>
-          )}
         </div>
+
+        {/* Pagination */}
+        {totalCount > 0 && (
+          <div className="flex items-center justify-between border-t border-border px-6 py-3">
+            <span className="text-xs text-muted-foreground">
+              Showing {rangeStart}–{rangeEnd} of {totalCount} traces
+            </span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+                {getPageNumbers(page, totalPages).map((p, i) =>
+                  p === "ellipsis" ? (
+                    <span key={`e${i}`} className="px-1 text-xs text-muted-foreground">
+                      ...
+                    </span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p)}
+                      className={cn(
+                        "size-7 rounded-md text-xs font-medium transition-colors",
+                        p === page
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                      )}
+                    >
+                      {p}
+                    </button>
+                  ),
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                >
+                  <ChevronRight className="size-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </TooltipProvider>
   );

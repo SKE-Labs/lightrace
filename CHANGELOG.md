@@ -2,7 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.0] - 2026-03-14
+## [0.1.2] - 2026-03-17
+
+### Performance
+
+- **Denormalized trace aggregates**: Pre-computed `totalTokens`, `totalCost`, `latencyMs`, `primaryModel`, `observationCount`, and `level` directly on the Trace model — eliminates observation JOINs from the trace list query
+- **Database indexes**: Added composite indexes `(projectId, level, timestamp)`, `(projectId, userId)` on traces and `(traceId, type)`, `(traceId, level)` on observations for faster aggregate computation and filtered queries
+- **Batched ingestion**: Wrapped event batch processing in `$transaction` for single-commit writes; replaced `findUnique` + `create` with single `upsert` in `ensureTraceExists`
+- **Trace list query optimization**: Replaced observation JOIN + in-memory aggregation with `select`-only query on denormalized trace columns — reduces data fetched per page from ~2,500 rows to ~20
+
+### Added
+
+- **Trace list pagination**: Replaced infinite scroll "Load more" with proper offset-based pagination — page numbers, prev/next controls, "Showing X-Y of Z traces" indicator (20 traces per page)
+- **Tool rerun sheet**: Converted tool re-run from cramped dialog to full-height right-side Sheet panel with Postman-style key-value editor, Table/Raw JSON toggle, inline validation, side-by-side result comparison, and context tooltip
+- **Message display improvements** (FormattedView):
+  - LangGraph role normalization (`human` → `user`, `ai` → `assistant`) for proper markdown rendering
+  - Double-nested array unwrapping (`[[...messages...]]`) for LangGraph GENERATION inputs
+  - "State" label for non-message wrapper fields (todos, memory_contents, skills_metadata)
+  - Collapsible thinking/reasoning blocks with Brain icon and amber styling
+  - Inline image rendering for `image_url` and base64 `image` content blocks
+  - Tool call → tool result grouping (results nested under their corresponding tool calls)
+  - Expand all / Collapse all toggle for message lists
+- **Sheet UI component** (`components/ui/sheet.tsx`) — right-side slide-in panel using `@base-ui/react/dialog`
+
+### Changed
+
+- Trace list page size reduced from 50 to 20 traces per page
+- Tool rerun results now use `FormattedView` instead of raw `JsonViewer` for consistency
+
+## [0.1.1] - 2026-03-14
 
 ### Changed
 
