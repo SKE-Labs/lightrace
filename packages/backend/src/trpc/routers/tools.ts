@@ -1,20 +1,18 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { router, protectedProcedure } from "../context";
+import { router, projectProcedure } from "../context";
 import { invokeToolOnAgent, getConnectedAgents } from "../../routes/tools-ws";
-
-const DEMO_PROJECT_ID = "demo-project";
 
 export const toolsRouter = router({
   /** List all registered tools for the project. */
-  list: protectedProcedure.query(async ({ ctx }) => {
+  list: projectProcedure.query(async ({ ctx }) => {
     const tools = await ctx.db.toolRegistration.findMany({
-      where: { projectId: DEMO_PROJECT_ID },
+      where: { projectId: ctx.projectId },
       orderBy: [{ status: "asc" }, { toolName: "asc" }],
     });
 
     // Enrich with live connection status
-    const connectedAgents = getConnectedAgents(DEMO_PROJECT_ID);
+    const connectedAgents = getConnectedAgents(ctx.projectId);
     const liveTools = new Set(
       connectedAgents.flatMap((a) => a.tools.map((t) => `${a.sdkInstanceId}:${t}`)),
     );
@@ -31,9 +29,10 @@ export const toolsRouter = router({
   }),
 
   /** Invoke a tool on a connected SDK agent. */
-  invoke: protectedProcedure
+  invoke: projectProcedure
     .input(
       z.object({
+        projectId: z.string(),
         toolName: z.string(),
         input: z.unknown(),
         state: z.unknown().optional(),
@@ -44,7 +43,7 @@ export const toolsRouter = router({
     .mutation(async ({ input, ctx }) => {
       try {
         const result = await invokeToolOnAgent({
-          projectId: DEMO_PROJECT_ID,
+          projectId: ctx.projectId,
           toolName: input.toolName,
           input: input.input,
           state: input.state,
@@ -53,8 +52,8 @@ export const toolsRouter = router({
 
         // If an observation ID was provided, create a new observation with the result
         if (input.observationId) {
-          const original = await ctx.db.observation.findUnique({
-            where: { id: input.observationId },
+          const original = await ctx.db.observation.findFirst({
+            where: { id: input.observationId, projectId: ctx.projectId },
           });
 
           if (original) {

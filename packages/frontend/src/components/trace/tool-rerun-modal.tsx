@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
-import { FormattedView } from "./FormattedView";
+import { FormattedView } from "./formatted-view";
 import {
   Play,
   Loader2,
@@ -123,7 +123,7 @@ function KeyValueEditor({
       {rows.length > 0 && (
         <div className="rounded-md border border-border overflow-hidden">
           {/* Header */}
-          <div className="grid grid-cols-[1fr_1.5fr_80px_32px] gap-0 bg-muted/50 border-b border-border text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+          <div className="grid grid-cols-[1fr_1.5fr_80px_32px] gap-0 bg-muted/50 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wider">
             <div className="px-2.5 py-1.5">Key</div>
             <div className="px-2.5 py-1.5 border-l border-border">Value</div>
             <div className="px-2.5 py-1.5 border-l border-border">Type</div>
@@ -184,7 +184,7 @@ function KeyValueEditor({
                   <select
                     value={row.type}
                     onChange={(e) => updateRow(i, { type: e.target.value as ParamType })}
-                    className="w-full px-1 py-1.5 bg-transparent text-[10px] text-muted-foreground focus:outline-none"
+                    className="w-full px-1 py-1.5 bg-transparent text-xs text-muted-foreground focus:outline-none"
                   >
                     <option value="string">string</option>
                     <option value="number">number</option>
@@ -225,6 +225,8 @@ interface ToolRerunModalProps {
   originalInput: unknown;
   originalOutput: unknown;
   observationId?: string;
+  /** Project ID for the tool invocation */
+  projectId?: string;
   /** Captured execution context from observation metadata.__lightrace_context */
   context?: Record<string, unknown>;
 }
@@ -236,6 +238,7 @@ export function ToolRerunModal({
   originalInput,
   originalOutput,
   observationId,
+  projectId,
   context,
 }: ToolRerunModalProps) {
   const [rows, setRows] = useState(() => inputToRows(originalInput));
@@ -297,6 +300,7 @@ export function ToolRerunModal({
 
       setResult(null);
       invoke.mutate({
+        projectId: projectId ?? "",
         toolName,
         input: parsedInput,
         state,
@@ -329,7 +333,7 @@ export function ToolRerunModal({
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Input
                 </label>
-                <div className="flex rounded-md border border-border text-[10px] overflow-hidden">
+                <div className="flex rounded-md border border-border text-xs overflow-hidden">
                   <button
                     onClick={() => {
                       if (rawMode) {
@@ -382,7 +386,7 @@ export function ToolRerunModal({
                   <textarea
                     value={rawText}
                     onChange={(e) => setRawText(e.target.value)}
-                    className="w-full min-h-[120px] rounded-md border border-border bg-muted/50 p-3 font-mono text-sm resize-y focus:outline-none focus:ring-1 focus:ring-ring"
+                    className="w-full min-h-[120px] rounded-md border border-border bg-muted/50 p-3 font-mono text-xs resize-y focus:outline-none focus:ring-1 focus:ring-ring"
                     spellCheck={false}
                   />
                   {!rawJsonValid && (
@@ -413,7 +417,7 @@ export function ToolRerunModal({
                   Context
                 </span>
                 {hasContext && (
-                  <Badge variant="outline" className="text-[10px] ml-1">
+                  <Badge variant="outline" className="text-xs ml-1">
                     captured
                   </Badge>
                 )}
@@ -433,7 +437,7 @@ export function ToolRerunModal({
                 <textarea
                   value={contextText}
                   onChange={(e) => setContextText(e.target.value)}
-                  className="w-full min-h-[100px] rounded-md border border-border bg-muted/50 p-3 font-mono text-sm resize-y focus:outline-none focus:ring-1 focus:ring-ring"
+                  className="w-full min-h-[100px] rounded-md border border-border bg-muted/50 p-3 font-mono text-xs resize-y focus:outline-none focus:ring-1 focus:ring-ring"
                   spellCheck={false}
                   placeholder='{"user_id": "...", "thread_id": "...", ...}'
                 />
@@ -453,7 +457,7 @@ export function ToolRerunModal({
                       Error
                     </Badge>
                   ) : (
-                    <Badge className="text-xs gap-1 bg-green-500/15 text-green-800 dark:text-green-400 border-green-500/30">
+                    <Badge className="text-xs gap-1 bg-success/15 text-success border-success/30">
                       <CheckCircle2 className="size-3" />
                       Success
                     </Badge>
@@ -488,7 +492,7 @@ export function ToolRerunModal({
                   /* Side-by-side comparison */
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Re-run Result
                       </span>
                       <div className="rounded-md border border-border bg-muted/50 p-3">
@@ -496,7 +500,7 @@ export function ToolRerunModal({
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Original Output
                       </span>
                       <div className="rounded-md border border-border bg-muted/50 p-3 opacity-70">

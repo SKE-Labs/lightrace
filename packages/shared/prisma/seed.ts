@@ -1,8 +1,11 @@
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { hash } from "bcryptjs";
 import { createHash, randomBytes } from "crypto";
 
-const db = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const db = new PrismaClient({ adapter });
 
 async function main() {
   // Create demo user
@@ -46,6 +49,20 @@ async function main() {
     },
   });
   console.log(`API Key: ${publicKey} / ${secretKey}`);
+
+  // Create project membership (OWNER)
+  await db.projectMembership.upsert({
+    where: {
+      userId_projectId: { userId: user.id, projectId: project.id },
+    },
+    update: {},
+    create: {
+      userId: user.id,
+      projectId: project.id,
+      role: "OWNER",
+    },
+  });
+  console.log(`Membership: ${user.email} → ${project.name} (OWNER)`);
 
   console.log("\n--- LightRace seeded ---");
   console.log(`Login: demo@lightrace.dev / password`);

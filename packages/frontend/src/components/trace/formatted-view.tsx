@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { ChevronRight, Brain } from "lucide-react";
-import { MemoizedMarkdown } from "./MemoizedMarkdown";
+import { MemoizedMarkdown } from "./memoized-markdown";
 
 // --- Role Normalization ---
 
@@ -231,7 +231,7 @@ function ToolDefinitionBlock({ content }: { content: Record<string, unknown> }) 
         <ChevronIcon expanded={expanded} />
         <span className="text-xs font-medium text-muted-foreground">{funcName}</span>
         {!expanded && descPreview && (
-          <span className="text-[10px] text-muted-foreground/50 ml-1 truncate max-w-[300px]">
+          <span className="text-xs text-muted-foreground/50 ml-1 truncate max-w-[300px]">
             {descPreview}
           </span>
         )}
@@ -308,13 +308,13 @@ function ThinkingBlock({ text }: { text: string }) {
   const preview = firstLine.length > 100 ? firstLine.slice(0, 100) + "…" : firstLine;
 
   return (
-    <div className="rounded-r-md border-l-2 border-amber-500/30 bg-amber-500/5 px-3 py-2">
+    <div className="rounded-r-md border-l-2 border-warning/30 bg-warning/5 px-3 py-2">
       <button
         onClick={() => setOpen(!open)}
         className="inline-flex items-center gap-1.5 w-full text-left"
       >
-        <Brain className="size-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-        <span className="text-xs font-medium text-amber-700 dark:text-amber-400">Thinking</span>
+        <Brain className="size-3.5 text-warning shrink-0" />
+        <span className="text-xs font-medium text-warning">Thinking</span>
         <ChevronIcon expanded={open} />
         {!open && <span className="text-xs text-muted-foreground/60 truncate ml-1">{preview}</span>}
       </button>
@@ -368,7 +368,7 @@ function ChatMessageView({
         className="flex items-start gap-2 w-full text-left"
       >
         <ChevronIcon expanded={expanded} />
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
           {label}
         </span>
         {!expanded && (
@@ -462,12 +462,10 @@ function ToolCallWithResult({
         <ChevronIcon expanded={expanded} />
         <span className="text-xs font-medium text-muted-foreground">{tc.name}</span>
         {!expanded && argsPreview && (
-          <span className="text-[10px] text-muted-foreground/50 truncate ml-1">
-            ({argsPreview})
-          </span>
+          <span className="text-xs text-muted-foreground/50 truncate ml-1">({argsPreview})</span>
         )}
         {tc.id && (
-          <span className="text-[10px] text-muted-foreground/50 ml-auto font-mono shrink-0">
+          <span className="text-xs text-muted-foreground/50 ml-auto font-mono shrink-0">
             {tc.id.slice(0, 8)}
           </span>
         )}
@@ -498,7 +496,7 @@ function ToolCallWithResult({
           )}
           {resultContent && (
             <div className="border-t border-border pt-1.5">
-              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Result
               </span>
               <div className="mt-1 text-xs whitespace-pre-wrap break-words text-muted-foreground max-h-[200px] overflow-auto">
@@ -601,7 +599,7 @@ function ChatMLView({ messages }: { messages: ChatMessage[] }) {
               setForceExpanded(true);
               setExpandGen((g) => g + 1);
             }}
-            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             Expand all
           </button>
@@ -610,7 +608,7 @@ function ChatMLView({ messages }: { messages: ChatMessage[] }) {
               setForceExpanded(false);
               setExpandGen((g) => g + 1);
             }}
-            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             Collapse all
           </button>
@@ -668,12 +666,11 @@ function isExpandable(value: unknown): value is object {
 function ValueCell({ value }: { value: unknown }) {
   const [expanded, setExpanded] = useState(false);
 
-  if (value === null) return <span className="text-orange-700 dark:text-orange-400">null</span>;
+  if (value === null) return <span className="text-syntax-null">null</span>;
   if (value === undefined) return <span className="text-muted-foreground">undefined</span>;
   if (typeof value === "boolean")
-    return <span className="text-amber-700 dark:text-amber-400">{value.toString()}</span>;
-  if (typeof value === "number")
-    return <span className="text-blue-700 dark:text-blue-400">{value}</span>;
+    return <span className="text-syntax-boolean">{value.toString()}</span>;
+  if (typeof value === "number") return <span className="text-syntax-number">{value}</span>;
 
   const str = typeof value === "string" ? value : JSON.stringify(value);
   if (str.length <= 200) {
@@ -685,7 +682,7 @@ function ValueCell({ value }: { value: unknown }) {
       {expanded ? str : str.slice(0, 200)}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="ml-1 text-xs text-blue-700 dark:text-blue-400 hover:underline"
+        className="ml-1 text-xs text-syntax-number hover:underline"
       >
         {expanded ? "show less" : `...${str.length - 200} more`}
       </button>
@@ -725,7 +722,7 @@ function TreeRow({
       <tr className="border-b border-border/50 last:border-0">
         <td
           className="py-1.5 pr-3 font-mono text-muted-foreground align-top whitespace-nowrap"
-          style={{ paddingLeft: `${depth * 16 + 12}px` }}
+          style={{ paddingLeft: `${depth * 16 + 8}px` }}
         >
           <span className="inline-flex items-center gap-1">
             {expandable ? (

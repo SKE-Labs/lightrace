@@ -11,14 +11,14 @@ interface ObservationIconConfig {
 export function getObservationIcon(type: ObservationType): ObservationIconConfig {
   switch (type) {
     case "GENERATION":
-      return { icon: Bot, color: "text-blue-600 dark:text-blue-500", label: "Generation" };
+      return { icon: Bot, color: "text-chart-1", label: "Generation" };
     case "SPAN":
-      return { icon: Settings2, color: "text-amber-600 dark:text-amber-500", label: "Span" };
+      return { icon: Settings2, color: "text-chart-3", label: "Span" };
     case "EVENT":
-      return { icon: CircleDot, color: "text-green-600 dark:text-green-500", label: "Event" };
+      return { icon: CircleDot, color: "text-chart-2", label: "Event" };
     case "TOOL":
-      return { icon: Wrench, color: "text-orange-600 dark:text-orange-500", label: "Tool" };
+      return { icon: Wrench, color: "text-chart-5", label: "Tool" };
     case "CHAIN":
-      return { icon: Link, color: "text-pink-600 dark:text-pink-500", label: "Chain" };
+      return { icon: Link, color: "text-chart-4", label: "Chain" };
   }
 }

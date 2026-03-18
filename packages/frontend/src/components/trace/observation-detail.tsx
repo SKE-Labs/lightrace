@@ -6,9 +6,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
-import { JsonViewer } from "./JsonViewer";
-import { FormattedView } from "./FormattedView";
-import { ToolRerunModal } from "./ToolRerunModal";
+import { JsonViewer } from "./json-viewer";
+import { FormattedView } from "./formatted-view";
+import { ToolRerunModal } from "./tool-rerun-modal";
+import { useProjectStore } from "@/lib/project-store";
 import { formatDuration, formatTokens, formatCost } from "@/lib/utils";
 import { Route, Copy, Clock, Coins, Hash, ChevronRight, RotateCcw } from "lucide-react";
 import { getObservationIcon } from "@/lib/observation-icons";
@@ -38,7 +39,7 @@ function TraceDetailPanel({ trace }: { trace: Trace }) {
     <TooltipProvider>
       <div className="flex h-full flex-col">
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-          <Route className="size-4 shrink-0 text-purple-600 dark:text-purple-500" />
+          <Route className="size-4 shrink-0 text-chart-4" />
           <h2 className="text-sm font-medium truncate">{trace.name || trace.id}</h2>
         </div>
         <Tabs defaultValue="io" className="flex-1 flex flex-col min-h-0">
@@ -55,7 +56,7 @@ function TraceDetailPanel({ trace }: { trace: Trace }) {
               <Section title="Input" data={trace.input} showToggle collapsible />
               <Section title="Output" data={trace.output} showToggle collapsible />
             </TabsContent>
-            <TabsContent value="metadata" className="mt-0 space-y-3">
+            <TabsContent value="metadata" className="mt-0 space-y-4">
               <MetadataRow label="ID" value={trace.id} mono copyable />
               <MetadataRow label="Timestamp" value={new Date(trace.timestamp).toLocaleString()} />
               {trace.sessionId && (
@@ -90,6 +91,7 @@ function TraceDetailPanel({ trace }: { trace: Trace }) {
 }
 
 function ObservationDetailPanel({ observation }: { observation: Observation }) {
+  const projectId = useProjectStore((s) => s.projectId);
   const [rerunOpen, setRerunOpen] = useState(false);
   const duration = observation.endTime
     ? new Date(observation.endTime).getTime() - new Date(observation.startTime).getTime()
@@ -123,7 +125,7 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
           {observation.level === "WARNING" && (
             <Badge
               className={cn(
-                "text-xs bg-yellow-500/15 text-yellow-800 dark:text-yellow-400 border-yellow-500/30",
+                "text-xs bg-warning/15 text-warning border-warning/30",
                 !isTool && "ml-auto",
               )}
             >
@@ -141,6 +143,7 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
             originalInput={observation.input}
             originalOutput={observation.output}
             observationId={observation.id}
+            projectId={projectId ?? undefined}
             context={
               (observation.metadata as Record<string, unknown> | null)?.__lightrace_context as
                 | Record<string, unknown>
@@ -150,7 +153,7 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
         )}
 
         {/* Header row 2: metric badges */}
-        <div className="flex flex-wrap items-center gap-1.5 px-4 py-2 border-b border-border">
+        <div className="flex flex-wrap items-center gap-1.5 px-4 py-2.5 border-b border-border">
           {duration !== null && duration > 0 && (
             <Badge variant="outline" className="text-xs font-mono gap-1">
               <Clock className="size-3" />
@@ -212,7 +215,7 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
         {/* Error banner */}
         {observation.level === "ERROR" && observation.statusMessage && (
           <div className="mx-4 my-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 flex items-start gap-2">
-            <span className="text-sm text-destructive flex-1 whitespace-pre-wrap break-words font-mono">
+            <span className="text-xs text-destructive flex-1 whitespace-pre-wrap break-words font-mono">
               {observation.statusMessage}
             </span>
             <button
@@ -240,7 +243,7 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
               <Section title="Input" data={observation.input} showToggle />
               <Section title="Output" data={observation.output} showToggle />
             </TabsContent>
-            <TabsContent value="metadata" className="mt-0 space-y-3">
+            <TabsContent value="metadata" className="mt-0 space-y-4">
               <MetadataRow label="ID" value={observation.id} mono copyable />
               <MetadataRow label="Trace ID" value={observation.traceId} mono copyable />
               <MetadataRow label="Start" value={new Date(observation.startTime).toLocaleString()} />
@@ -314,7 +317,7 @@ function Section({
         )}
         <div className="flex items-center gap-2">
           {showToggle && hasData && open && (
-            <div className="flex rounded-md border border-border text-[10px] overflow-hidden">
+            <div className="flex rounded-md border border-border text-xs overflow-hidden">
               <button
                 onClick={() => setViewMode("formatted")}
                 className={cn(

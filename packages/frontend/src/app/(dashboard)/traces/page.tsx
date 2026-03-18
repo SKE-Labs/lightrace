@@ -1,5 +1,5 @@
-import { TraceList } from "@/components/trace/TraceList";
+import { redirect } from "next/navigation";
 
-export default function TracesPage() {
-  return <TraceList />;
+export default function OldTracesPage() {
+  redirect("/projects");
 }

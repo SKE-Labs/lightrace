@@ -1,10 +1,11 @@
 import { z } from "zod";
-import { router, protectedProcedure } from "../context";
+import { router, projectProcedure, projectAdminProcedure } from "../context";
 
 export const tracesRouter = router({
-  list: protectedProcedure
+  list: projectProcedure
     .input(
       z.object({
+        projectId: z.string(),
         limit: z.number().min(1).max(100).default(50),
         page: z.number().min(1).default(1),
         search: z.string().optional(),
@@ -14,7 +15,10 @@ export const tracesRouter = router({
       const { limit, page, search } = input;
       const skip = (page - 1) * limit;
 
-      const where = search ? { name: { contains: search, mode: "insensitive" as const } } : {};
+      const where = {
+        projectId: ctx.projectId,
+        ...(search ? { name: { contains: search, mode: "insensitive" as const } } : {}),
+      };
 
       const [traces, totalCount] = await Promise.all([
         ctx.db.trace.findMany({
@@ -60,27 +64,31 @@ export const tracesRouter = router({
       };
     }),
 
-  byId: protectedProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
-    const trace = await ctx.db.trace.findUnique({
-      where: { id: input.id },
-      include: {
-        observations: {
-          orderBy: { startTime: "asc" },
+  byId: projectProcedure
+    .input(z.object({ projectId: z.string(), id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const trace = await ctx.db.trace.findUnique({
+        where: { id: input.id },
+        include: {
+          observations: {
+            orderBy: { startTime: "asc" },
+          },
         },
-      },
-    });
+      });
 
-    if (!trace) {
-      return null;
-    }
+      if (!trace || trace.projectId !== ctx.projectId) {
+        return null;
+      }
 
-    return trace;
-  }),
+      return trace;
+    }),
 
-  delete: protectedProcedure
-    .input(z.object({ id: z.string() }))
+  delete: projectAdminProcedure
+    .input(z.object({ projectId: z.string(), id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      await ctx.db.trace.delete({ where: { id: input.id } });
+      await ctx.db.trace.deleteMany({
+        where: { id: input.id, projectId: ctx.projectId },
+      });
       return { success: true };
     }),
 });

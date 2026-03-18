@@ -21,31 +21,36 @@ Tool invocation flow: SDK connects WS to backend → registers tools → backend
 
 ## Key Files
 
-| Purpose            | Path                                                        |
-| ------------------ | ----------------------------------------------------------- |
-| Prisma schema      | `packages/shared/prisma/schema.prisma`                      |
-| Prisma config      | `packages/shared/prisma.config.ts`                          |
-| DB client          | `packages/shared/src/db.ts`                                 |
-| Redis client       | `packages/shared/src/redis.ts`                              |
-| Ingestion schemas  | `packages/shared/src/schemas/ingestion.ts`                  |
-| API auth           | `packages/shared/src/auth/apiAuth.ts`                       |
-| Backend entrypoint | `packages/backend/src/index.ts`                             |
-| tRPC router        | `packages/backend/src/trpc/router.ts`                       |
-| tRPC context       | `packages/backend/src/trpc/context.ts`                      |
-| Tools tRPC router  | `packages/backend/src/trpc/routers/tools.ts`                |
-| Tools WS handler   | `packages/backend/src/routes/tools-ws.ts`                   |
-| Event processing   | `packages/backend/src/ingestion/processEventBatch.ts`       |
-| Ingestion route    | `packages/backend/src/routes/ingestion.ts`                  |
-| OTel route         | `packages/backend/src/routes/otel.ts`                       |
-| Auth config        | `packages/frontend/src/server/auth.ts`                      |
-| tRPC proxy         | `packages/frontend/src/app/api/trpc/[trpc]/route.ts`        |
-| Realtime pub/sub   | `packages/backend/src/realtime/pubsub.ts`                   |
-| Realtime router    | `packages/backend/src/trpc/routers/realtime.ts`             |
-| WS auth endpoint   | `packages/frontend/src/app/api/ws-auth/route.ts`            |
-| Realtime hooks     | `packages/frontend/src/lib/use-realtime.ts`                 |
-| Trace components   | `packages/frontend/src/components/trace/`                   |
-| Tool re-run modal  | `packages/frontend/src/components/trace/ToolRerunModal.tsx` |
-| Tools page         | `packages/frontend/src/app/(dashboard)/tools/page.tsx`      |
+| Purpose            | Path                                                                       |
+| ------------------ | -------------------------------------------------------------------------- |
+| Prisma schema      | `packages/shared/prisma/schema.prisma`                                     |
+| Prisma config      | `packages/shared/prisma.config.ts`                                         |
+| DB client          | `packages/shared/src/db.ts`                                                |
+| Redis client       | `packages/shared/src/redis.ts`                                             |
+| Ingestion schemas  | `packages/shared/src/schemas/ingestion.ts`                                 |
+| API auth           | `packages/shared/src/auth/apiAuth.ts`                                      |
+| Backend entrypoint | `packages/backend/src/index.ts`                                            |
+| tRPC router        | `packages/backend/src/trpc/router.ts`                                      |
+| tRPC context       | `packages/backend/src/trpc/context.ts`                                     |
+| Tools tRPC router  | `packages/backend/src/trpc/routers/tools.ts`                               |
+| Tools WS handler   | `packages/backend/src/routes/tools-ws.ts`                                  |
+| Event processing   | `packages/backend/src/ingestion/processEventBatch.ts`                      |
+| Ingestion route    | `packages/backend/src/routes/ingestion.ts`                                 |
+| OTel route         | `packages/backend/src/routes/otel.ts`                                      |
+| Auth config        | `packages/frontend/src/server/auth.ts`                                     |
+| tRPC proxy         | `packages/frontend/src/app/api/trpc/[trpc]/route.ts`                       |
+| Realtime pub/sub   | `packages/backend/src/realtime/pubsub.ts`                                  |
+| Realtime router    | `packages/backend/src/trpc/routers/realtime.ts`                            |
+| WS auth endpoint   | `packages/frontend/src/app/api/ws-auth/route.ts`                           |
+| Realtime hooks     | `packages/frontend/src/lib/use-realtime.ts`                                |
+| Trace components   | `packages/frontend/src/components/trace/`                                  |
+| Tool re-run modal  | `packages/frontend/src/components/trace/ToolRerunModal.tsx`                |
+| Projects router    | `packages/backend/src/trpc/routers/projects.ts`                            |
+| Members router     | `packages/backend/src/trpc/routers/members.ts`                             |
+| Project store      | `packages/frontend/src/lib/project-store.ts`                               |
+| Project layout     | `packages/frontend/src/app/(dashboard)/project/[projectId]/layout.tsx`     |
+| Projects list      | `packages/frontend/src/app/(dashboard)/projects/page.tsx`                  |
+| Tools page         | `packages/frontend/src/app/(dashboard)/project/[projectId]/tools/page.tsx` |
 
 ## Development Commands
 
@@ -82,7 +87,8 @@ pnpm --filter @lightrace/backend dev     # Backend only (port 3002)
 
 - PostgreSQL on port 5435 (docker-compose)
 - Redis on port 6379 (docker-compose)
-- 7 models: User, Project, ApiKey, Trace, Observation, Score, ToolRegistration
+- 9 models: User, Project, ApiKey, Trace, Observation, ToolRegistration, ProjectMembership, MembershipInvitation
+- RBAC: ProjectMembership with roles (OWNER, ADMIN, MEMBER, VIEWER); all tRPC routers use `projectProcedure` for authorization
 - Demo login: `demo@lightrace.dev` / `password`
 - Demo API keys: `pk-lt-demo` / `sk-lt-demo`
 

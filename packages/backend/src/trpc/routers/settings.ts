@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { randomBytes, createHash } from "crypto";
-import { router, protectedProcedure } from "../context";
+import { router, projectProcedure, projectAdminProcedure } from "../context";
 
 export const settingsRouter = router({
-  listApiKeys: protectedProcedure.query(async ({ ctx }) => {
+  listApiKeys: projectProcedure.query(async ({ ctx }) => {
     const keys = await ctx.db.apiKey.findMany({
+      where: { projectId: ctx.projectId },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -12,13 +13,12 @@ export const settingsRouter = router({
         displaySecretKey: true,
         note: true,
         createdAt: true,
-        project: { select: { name: true } },
       },
     });
     return keys;
   }),
 
-  createApiKey: protectedProcedure
+  createApiKey: projectAdminProcedure
     .input(
       z.object({
         projectId: z.string(),
@@ -37,23 +37,20 @@ export const settingsRouter = router({
           hashedSecretKey,
           displaySecretKey,
           note: input.note,
-          projectId: input.projectId,
+          projectId: ctx.projectId,
         },
       });
 
       return { publicKey, secretKey };
     }),
 
-  deleteApiKey: protectedProcedure
-    .input(z.object({ id: z.string() }))
+  deleteApiKey: projectAdminProcedure
+    .input(z.object({ projectId: z.string(), id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      await ctx.db.apiKey.delete({ where: { id: input.id } });
+      // Ensure the key belongs to this project
+      await ctx.db.apiKey.deleteMany({
+        where: { id: input.id, projectId: ctx.projectId },
+      });
       return { success: true };
     }),
-
-  listProjects: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.db.project.findMany({
-      orderBy: { createdAt: "desc" },
-    });
-  }),
 });

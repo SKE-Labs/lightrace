@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
+import { useProjectStore } from "@/lib/project-store";
 import { useRealtimeTraceUpdates } from "@/lib/use-realtime";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,7 @@ function getPageNumbers(current: number, total: number): (number | "ellipsis")[]
 
 export function TraceList() {
   const router = useRouter();
+  const projectId = useProjectStore((s) => s.projectId);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
@@ -41,11 +43,11 @@ export function TraceList() {
   }, [search]);
 
   // Real-time updates via WebSocket
-  useRealtimeTraceUpdates("demo-project");
+  useRealtimeTraceUpdates(projectId ?? "");
 
   const { data, isLoading, isError, error } = trpc.traces.list.useQuery(
-    { limit: PAGE_SIZE, page, search: search || undefined },
-    { retry: false, refetchInterval: 30000 },
+    { projectId: projectId!, limit: PAGE_SIZE, page, search: search || undefined },
+    { retry: false, refetchInterval: 30000, enabled: !!projectId },
   );
 
   const traces = data?.items ?? [];
@@ -58,8 +60,7 @@ export function TraceList() {
   return (
     <TooltipProvider>
       <div className="flex h-full flex-col">
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h1 className="text-lg font-semibold">Traces</h1>
+        <div className="flex items-center justify-end px-6 py-3">
           <Input
             placeholder="Search by name..."
             value={search}
@@ -71,7 +72,7 @@ export function TraceList() {
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-card border-b border-border">
               <tr className="text-muted-foreground">
-                <th className="px-6 py-3 text-left font-medium">Name</th>
+                <th className="px-4 py-3 text-left font-medium">Name</th>
                 <th className="px-4 py-3 text-left font-medium">Timestamp</th>
                 <th className="px-4 py-3 text-right font-medium">Latency</th>
                 <th className="px-4 py-3 text-right font-medium">Tokens</th>
@@ -85,7 +86,7 @@ export function TraceList() {
                 !isError &&
                 Array.from({ length: 5 }, (_, i) => (
                   <tr key={i} className="border-b border-border/50">
-                    <td className="px-6 py-3">
+                    <td className="px-4 py-3">
                       <div className="h-4 w-32 bg-muted animate-pulse rounded" />
                     </td>
                     <td className="px-4 py-3">
@@ -136,19 +137,19 @@ export function TraceList() {
                 <tr
                   key={trace.id}
                   className="border-b border-border/50 hover:bg-accent/30 transition-colors cursor-pointer"
-                  onClick={() => router.push(`/traces/${trace.id}`)}
+                  onClick={() => router.push(`/project/${projectId}/traces/${trace.id}`)}
                 >
-                  <td className="px-6 py-3">
+                  <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       {trace.hasError && (
                         <span
-                          className="size-2 rounded-full bg-red-500 shrink-0"
+                          className="size-2 rounded-full bg-error shrink-0"
                           title="Has errors"
                         />
                       )}
                       {trace.hasWarning && (
                         <span
-                          className="size-2 rounded-full bg-yellow-500 shrink-0"
+                          className="size-2 rounded-full bg-warning shrink-0"
                           title="Has warnings"
                         />
                       )}
@@ -156,7 +157,7 @@ export function TraceList() {
                         {trace.name || trace.id.slice(0, 8)}
                       </span>
                       {trace.primaryModel && (
-                        <Badge variant="secondary" className="text-[10px] font-mono shrink-0">
+                        <Badge variant="secondary" className="text-xs font-mono shrink-0">
                           {trace.primaryModel}
                         </Badge>
                       )}
