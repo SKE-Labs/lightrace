@@ -657,6 +657,153 @@ function ToolDefinitionsSection({ toolDefs }: { toolDefs: ChatMessage[] }) {
   );
 }
 
+function LLMToolDefinitionsSection({ tools }: { tools: Record<string, unknown>[] }) {
+  const [open, setOpen] = useState(false);
+
+  // Extract name and first-line description for each tool
+  const toolSummaries = tools.map((tool) => {
+    const funcObj = tool.function as Record<string, unknown> | undefined;
+    const name = (funcObj?.name as string) ?? "unknown";
+    const desc = (funcObj?.description as string) ?? "";
+    const paramObj = funcObj?.parameters as Record<string, unknown> | undefined;
+    const properties = paramObj?.properties as Record<string, unknown> | undefined;
+    const paramCount = properties ? Object.keys(properties).length : 0;
+    return { name, desc, paramCount, raw: tool };
+  });
+
+  return (
+    <div className="space-y-2">
+      <button
+        onClick={() => setOpen(!open)}
+        className="inline-flex items-center gap-2 max-w-full min-w-0"
+      >
+        <ChevronIcon expanded={open} />
+        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider shrink-0">
+          Tools
+        </h3>
+        <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full shrink-0">
+          {tools.length}
+        </span>
+        {!open && (
+          <span className="text-xs text-muted-foreground/50 truncate min-w-0">
+            {toolSummaries.map((t) => t.name).join(", ")}
+          </span>
+        )}
+      </button>
+      {open && (
+        <div className="divide-y divide-border rounded-md border border-border">
+          {toolSummaries.map((tool, i) => (
+            <LLMToolCard key={i} tool={tool.raw} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LLMToolCard({ tool }: { tool: Record<string, unknown> }) {
+  const [expanded, setExpanded] = useState(false);
+  const funcObj = tool.function as Record<string, unknown> | undefined;
+  const name = (funcObj?.name as string) ?? "function";
+  const desc = (funcObj?.description as string) ?? "";
+  const params = funcObj?.parameters as Record<string, unknown> | undefined;
+  const properties = (params?.properties as Record<string, Record<string, unknown>>) ?? {};
+  const required = (params?.required as string[]) ?? [];
+  const paramEntries = Object.entries(properties);
+
+  // First meaningful line of description as preview
+  const descFirstLine = desc
+    .split("\n")
+    .map((l) => l.trim())
+    .find((l) => l.length > 0);
+
+  return (
+    <div className="px-3 py-2">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-start gap-2 w-full text-left"
+      >
+        <ChevronIcon expanded={expanded} />
+        <code className="text-xs font-semibold text-foreground shrink-0">{name}</code>
+        {paramEntries.length > 0 && (
+          <span className="text-[10px] text-muted-foreground/60 shrink-0">
+            {paramEntries.length} param{paramEntries.length !== 1 ? "s" : ""}
+          </span>
+        )}
+        {!expanded && descFirstLine && (
+          <span className="text-xs text-muted-foreground/50 truncate min-w-0">{descFirstLine}</span>
+        )}
+      </button>
+
+      {expanded && (
+        <div className="mt-2 ml-5 space-y-3">
+          {/* Description */}
+          {desc && (
+            <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
+              {desc}
+            </p>
+          )}
+
+          {/* Parameters */}
+          {paramEntries.length > 0 && (
+            <div className="space-y-1">
+              <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                Parameters
+              </h4>
+              <div className="overflow-auto rounded border border-border/50">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/30">
+                      <th className="py-1 px-2 text-left font-medium text-muted-foreground">
+                        Name
+                      </th>
+                      <th className="py-1 px-2 text-left font-medium text-muted-foreground">
+                        Type
+                      </th>
+                      <th className="py-1 px-2 text-left font-medium text-muted-foreground">
+                        Description
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paramEntries.map(([pName, prop]) => {
+                      const propType = resolveParamType(prop);
+                      const propDesc = (prop.description as string) ?? "";
+                      const isRequired = required.includes(pName);
+                      const defaultVal = prop.default;
+                      return (
+                        <tr key={pName} className="border-b border-border/30 last:border-0">
+                          <td className="py-1 px-2 whitespace-nowrap align-top">
+                            <code className="text-foreground">{pName}</code>
+                            {isRequired && (
+                              <span className="text-red-400 ml-0.5" title="required">
+                                *
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-1 px-2 text-muted-foreground whitespace-nowrap align-top">
+                            <span className="text-blue-400/80">{propType}</span>
+                            {defaultVal !== undefined && defaultVal !== null && (
+                              <span className="text-muted-foreground/50 ml-1">
+                                = {JSON.stringify(defaultVal)}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-1 px-2 text-muted-foreground align-top">{propDesc}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // --- Nested Path/Value Table ---
 
 function isExpandable(value: unknown): value is object {
@@ -796,15 +943,28 @@ function PathValueTable({ data }: { data: unknown }) {
 
 // --- LLM Input/Output Detection ---
 
-function detectLLMInput(
-  data: unknown,
-): { messages?: ChatMessage[]; remainder?: Record<string, unknown> } | null {
+function detectLLMInput(data: unknown): {
+  messages?: ChatMessage[];
+  tools?: Record<string, unknown>[];
+  remainder?: Record<string, unknown>;
+} | null {
   if (typeof data !== "object" || data === null || Array.isArray(data)) return null;
   const obj = data as Record<string, unknown>;
-  if (isChatML(obj.messages)) {
-    const { messages, ...rest } = obj;
+
+  // Unwrap double-nested messages: [[...msgs...]] → [...msgs...]
+  // LangChain wraps messages in an extra array for GENERATION inputs
+  let msgs = obj.messages;
+  if (Array.isArray(msgs) && msgs.length === 1 && Array.isArray(msgs[0])) {
+    msgs = msgs[0];
+  }
+
+  if (isChatML(msgs)) {
+    const { messages: _messages, tools, functions, ...rest } = obj;
+    // Normalize tools: accept both "tools" and "functions" keys
+    const toolDefs = (tools ?? functions) as Record<string, unknown>[] | undefined;
     return {
-      messages: messages as ChatMessage[],
+      messages: msgs as ChatMessage[],
+      tools: Array.isArray(toolDefs) && toolDefs.length > 0 ? toolDefs : undefined,
       remainder: Object.keys(rest).length > 0 ? rest : undefined,
     };
   }
@@ -895,12 +1055,14 @@ export function FormattedView({ data }: FormattedViewProps) {
     return <ChatMLView messages={[normalized as ChatMessage]} />;
   }
 
-  // Detect LLM input wrapper (e.g., { messages: [...], model: "..." })
+  console.log("normalized", normalized);
+  // Detect LLM input wrapper (e.g., { messages: [...], tools: [...] })
   const llmInput = detectLLMInput(normalized);
   if (llmInput?.messages) {
     return (
       <div className="space-y-3">
         <ChatMLView messages={llmInput.messages} />
+        {llmInput.tools && <LLMToolDefinitionsSection tools={llmInput.tools} />}
         {llmInput.remainder && (
           <div className="space-y-2">
             <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
