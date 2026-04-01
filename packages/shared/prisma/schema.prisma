@@ -70,7 +70,6 @@ model Trace {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-  // Denormalized aggregates (maintained by ingestion)
   totalTokens      Int              @default(0) @map("total_tokens")
   totalCost        Float?           @map("total_cost")
   latencyMs        Int?             @map("latency_ms")
@@ -147,7 +146,7 @@ model ToolRegistration {
   toolName    String   @map("tool_name")
   description String?
   inputSchema Json?    @map("input_schema")
-  callbackUrl String   @map("callback_url")
+  callbackUrl String   @default("") @map("callback_url")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 

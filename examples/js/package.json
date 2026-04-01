@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "dotenv": "^16.4.0",
-    "lightrace": "^0.1.8"
+    "lightrace": "^0.1.9"
   },
   "devDependencies": {
     "@anthropic-ai/sdk": ">=0.30.0",
