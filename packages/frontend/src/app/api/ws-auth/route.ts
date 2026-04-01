@@ -13,7 +13,10 @@ export async function GET() {
   const session = await auth();
 
   if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { code: 401, message: "Unauthorized", response: null },
+      { status: 401 },
+    );
   }
 
   // Build WS URL with auth params
@@ -25,6 +28,8 @@ export async function GET() {
   });
 
   return NextResponse.json({
-    wsUrl: `ws://${backendHost}:${WS_PORT}?${params.toString()}`,
+    code: 200,
+    message: "OK",
+    response: { wsUrl: `ws://${backendHost}:${WS_PORT}?${params.toString()}` },
   });
 }

@@ -287,23 +287,11 @@ export function ToolRerunModal({
         parsedInput = rowsToInput(rows);
       }
 
-      let state: Record<string, unknown> | undefined;
-      if (contextText && contextText !== "{}") {
-        try {
-          const parsedContext = JSON.parse(contextText);
-          state = { __lightrace_context: parsedContext };
-        } catch {
-          setResult({ output: null, error: "Invalid JSON in context", durationMs: 0 });
-          return;
-        }
-      }
-
       setResult(null);
       invoke.mutate({
         projectId: projectId ?? "",
         toolName,
         input: parsedInput,
-        state,
         observationId,
       });
     } catch (e) {

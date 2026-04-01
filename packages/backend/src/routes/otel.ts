@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { gunzip } from "node:zlib";
 import { promisify } from "node:util";
 import { authenticateApiKey } from "@lightrace/shared/auth/apiAuth";
+import { apiResponse } from "../utils/api-response";
 import { processOtelResourceSpans } from "../ingestion/otel/processOtelSpans";
 import { publishTraceUpdate } from "../realtime/pubsub";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -21,7 +22,7 @@ otelRoutes.post("/", async (c) => {
     const authResult = await authenticateApiKey(c.req.header("authorization") ?? null);
     if (!authResult.valid) {
       console.warn("[otel] Auth failed:", authResult.error);
-      return c.json({ error: authResult.error }, 401);
+      return apiResponse(c, 401, authResult.error);
     }
     console.log("[otel] Authenticated for project:", authResult.projectId);
 
@@ -99,9 +100,9 @@ otelRoutes.post("/", async (c) => {
       publishTraceUpdate(authResult.projectId, traceId);
     }
 
-    return c.json({}, 200);
+    return apiResponse(c, 200, "OK");
   } catch (error) {
     console.error("[otel] Unexpected error:", error instanceof Error ? error.stack : error);
-    return c.json({ error: "Internal server error" }, 500);
+    return apiResponse(c, 500, "Internal server error");
   }
 });

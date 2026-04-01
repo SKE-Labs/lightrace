@@ -46,10 +46,10 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
       try {
         const res = await fetch("/api/ws-auth");
         if (!res.ok || cancelled) return;
-        const { wsUrl } = await res.json();
+        const body = await res.json();
         if (cancelled) return;
 
-        wsUrlRef.current = wsUrl;
+        wsUrlRef.current = body.response?.wsUrl;
         setWsReady(true);
       } catch {
         console.warn("[trpc] WebSocket unavailable, real-time updates disabled");

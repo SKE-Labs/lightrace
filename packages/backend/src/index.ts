@@ -9,8 +9,9 @@ import { createTRPCContext } from "./trpc/context";
 import { extractUser } from "./middleware/auth";
 import { ingestionRoutes } from "./routes/ingestion";
 import { otelRoutes } from "./routes/otel";
+import { toolsRegistryRoutes } from "./routes/tools-registry";
+import { apiResponse } from "./utils/api-response";
 import { realtimeEmitter } from "./realtime/pubsub";
-import { handleToolConnection } from "./routes/tools-ws";
 
 const INTERNAL_SECRET = process.env.INTERNAL_SECRET || "dev-internal-secret";
 const PORT = parseInt(process.env.PORT || "3002", 10);
@@ -18,12 +19,12 @@ const WS_PORT = parseInt(process.env.WS_PORT || "3003", 10);
 
 const app = new Hono();
 
-// CORS for public API endpoints (SDK ingestion)
+// CORS for public API endpoints (SDK ingestion + tool registration)
 app.use(
   "/api/public/*",
   cors({
     origin: "*",
-    allowMethods: ["POST", "OPTIONS"],
+    allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
     allowHeaders: [
       "Content-Type",
       "Authorization",
@@ -37,6 +38,7 @@ app.use(
 // Public ingestion endpoints (authenticated via API key, not internal secret)
 app.route("/api/public/ingestion", ingestionRoutes);
 app.route("/api/public/otel/v1/traces", otelRoutes);
+app.route("/api/public/tools", toolsRegistryRoutes);
 
 // tRPC endpoint (authenticated via internal secret from frontend proxy)
 app.all("/trpc/*", async (c) => {
@@ -52,7 +54,7 @@ app.all("/trpc/*", async (c) => {
 });
 
 // Health check
-app.get("/health", (c) => c.json({ status: "ok" }));
+app.get("/health", (c) => apiResponse(c, 200, "OK", { status: "ok" }));
 
 // Start HTTP server
 console.log(`[backend] Starting HTTP on port ${PORT}`);
@@ -60,23 +62,8 @@ serve({ fetch: app.fetch, port: PORT }, (info) => {
   console.log(`[backend] HTTP listening on http://localhost:${info.port}`);
 });
 
-// Start WebSocket server for tRPC subscriptions + tool connections
+// Start WebSocket server for tRPC subscriptions (real-time dashboard updates)
 const wss = new WebSocketServer({ port: WS_PORT });
-
-// Route WebSocket connections based on URL path
-wss.on("connection", (ws, req) => {
-  const url = new URL(req.url ?? "", `http://localhost:${WS_PORT}`);
-
-  if (url.pathname === "/api/public/tools/ws") {
-    // SDK tool connection — authenticated via API key
-    const authHeader = req.headers.authorization ?? null;
-    handleToolConnection(ws, authHeader);
-    return;
-  }
-
-  // All other connections go to tRPC (default behavior)
-  // The tRPC handler is set up below via applyWSSHandler
-});
 
 applyWSSHandler({
   wss,

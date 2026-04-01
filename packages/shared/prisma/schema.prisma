@@ -27,12 +27,13 @@ model Project {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
-  apiKeys            ApiKey[]
-  traces             Trace[]
-  observations       Observation[]
-  toolRegistrations  ToolRegistration[]
-  memberships        ProjectMembership[]
-  invitations        MembershipInvitation[]
+  apiKeys               ApiKey[]
+  traces                Trace[]
+  observations          Observation[]
+  toolRegistrations     ToolRegistration[]
+  conversationMessages  ConversationMessage[]
+  memberships           ProjectMembership[]
+  invitations           MembershipInvitation[]
 
   @@map("projects")
 }
@@ -140,20 +141,33 @@ model Observation {
 }
 
 model ToolRegistration {
-  id            String   @id @default(cuid())
-  projectId     String   @map("project_id")
-  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  sdkInstanceId String   @map("sdk_instance_id")
-  toolName      String   @map("tool_name")
-  inputSchema   Json?    @map("input_schema")
-  status        String   @default("online")
-  lastHeartbeat DateTime @default(now()) @map("last_heartbeat")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+  id          String   @id @default(cuid())
+  projectId   String   @map("project_id")
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  toolName    String   @map("tool_name")
+  description String?
+  inputSchema Json?    @map("input_schema")
+  callbackUrl String   @map("callback_url")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
-  @@unique([projectId, sdkInstanceId, toolName])
-  @@index([projectId, status])
+  @@unique([projectId, toolName])
+  @@index([projectId])
   @@map("tool_registrations")
+}
+
+model ConversationMessage {
+  id        String   @id @default(cuid())
+  projectId String   @map("project_id")
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sessionId String   @map("session_id")
+  role      String
+  content   Json
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([projectId, sessionId, createdAt])
+  @@map("conversation_messages")
 }
 
 enum MemberRole {

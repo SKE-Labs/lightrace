@@ -3,6 +3,7 @@ import { authenticateApiKey } from "@lightrace/shared/auth/apiAuth";
 import { ingestionBatchSchema } from "@lightrace/shared/schemas/ingestion";
 import { processEventBatch } from "../ingestion/processEventBatch";
 import { publishTraceUpdate } from "../realtime/pubsub";
+import { apiResponse } from "../utils/api-response";
 
 export const ingestionRoutes = new Hono();
 
@@ -11,14 +12,14 @@ ingestionRoutes.post("/", async (c) => {
     const authResult = await authenticateApiKey(c.req.header("authorization") ?? null);
 
     if (!authResult.valid) {
-      return c.json({ error: authResult.error }, 401);
+      return apiResponse(c, 401, authResult.error);
     }
 
     const rawBody = await c.req.json();
     const parsed = ingestionBatchSchema.safeParse(rawBody);
 
     if (!parsed.success) {
-      return c.json({ error: "Invalid request body", details: parsed.error.message }, 400);
+      return apiResponse(c, 400, "Invalid request body", { details: parsed.error.message });
     }
 
     const result = await processEventBatch(parsed.data.batch, authResult.projectId);
@@ -36,9 +37,9 @@ ingestionRoutes.post("/", async (c) => {
       publishTraceUpdate(authResult.projectId, traceId);
     }
 
-    return c.json(result, 207);
+    return apiResponse(c, 207, "Batch processed", result);
   } catch (error) {
     console.error("[ingestion] Unexpected error:", error);
-    return c.json({ error: "Internal server error" }, 500);
+    return apiResponse(c, 500, "Internal server error");
   }
 });

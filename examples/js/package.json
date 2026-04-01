@@ -1,0 +1,21 @@
+{
+  "name": "lightrace-examples-js",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "anthropic": "tsx anthropic.ts",
+    "openai": "tsx openai.ts",
+    "langchain": "tsx langchain.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.0",
+    "lightrace": "^0.1.8"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": ">=0.30.0",
+    "@langchain/core": ">=0.2.0",
+    "@langchain/openai": ">=0.2.0",
+    "openai": ">=4.0.0",
+    "tsx": "^4.0.0"
+  }
+}

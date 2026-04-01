@@ -2,14 +2,14 @@
 
 ## Project Overview
 
-LightRace is a lightweight, open-source LLM tracing tool with remote tool invocation. It is compatible with the Langfuse Python/JS SDKs and has its own SDKs (`lightrace-python`, `lightrace-js`) with a unified `@trace` decorator that supports remote tool re-execution.
+Lightrace is an agentic development kit — LLM tracing, tool management, and agent primitives. It is compatible with the Langfuse Python/JS SDKs and has its own SDKs (`lightrace-python`, `lightrace-js`) with a unified `@trace` decorator, provider wrappers, and an embedded HTTP dev server for tool invocation from the dashboard.
 
 ## Architecture
 
 Monorepo with Turborepo + pnpm workspaces:
 
 - **`packages/shared`** (`@lightrace/shared`) — Prisma schema, DB client, Zod schemas, Redis client, shared utils
-- **`packages/backend`** (`@lightrace/backend`) — Hono server (tRPC + REST ingestion + OTel + Tool WebSocket)
+- **`packages/backend`** (`@lightrace/backend`) — Hono server (tRPC + REST ingestion + OTel + HTTP tool registry)
 - **`packages/frontend`** (`@lightrace/frontend`) — Next.js 15 (UI + Auth.js), proxies tRPC to backend
 - **Infrastructure:** PostgreSQL (port 5435) + Redis (port 6379) via docker-compose
 
@@ -17,40 +17,40 @@ Frontend authenticates users via Auth.js. tRPC queries/mutations are proxied thr
 
 Real-time flow: ingestion → Redis Pub/Sub → tRPC subscription → WebSocket → frontend query invalidation.
 
-Tool invocation flow: SDK connects WS to backend → registers tools → backend sends invoke commands → SDK executes locally → result returned.
+Tool invocation flow: SDK starts embedded HTTP dev server → registers tools + callbackUrl via HTTP POST → dashboard invokes tools by proxying HTTP request through backend to SDK's dev server → SDK executes locally → result returned.
 
 ## Key Files
 
-| Purpose            | Path                                                                       |
-| ------------------ | -------------------------------------------------------------------------- |
-| Prisma schema      | `packages/shared/prisma/schema.prisma`                                     |
-| Prisma config      | `packages/shared/prisma.config.ts`                                         |
-| DB client          | `packages/shared/src/db.ts`                                                |
-| Redis client       | `packages/shared/src/redis.ts`                                             |
-| Ingestion schemas  | `packages/shared/src/schemas/ingestion.ts`                                 |
-| API auth           | `packages/shared/src/auth/apiAuth.ts`                                      |
-| Backend entrypoint | `packages/backend/src/index.ts`                                            |
-| tRPC router        | `packages/backend/src/trpc/router.ts`                                      |
-| tRPC context       | `packages/backend/src/trpc/context.ts`                                     |
-| Tools tRPC router  | `packages/backend/src/trpc/routers/tools.ts`                               |
-| Tools WS handler   | `packages/backend/src/routes/tools-ws.ts`                                  |
-| Event processing   | `packages/backend/src/ingestion/processEventBatch.ts`                      |
-| Ingestion route    | `packages/backend/src/routes/ingestion.ts`                                 |
-| OTel route         | `packages/backend/src/routes/otel.ts`                                      |
-| Auth config        | `packages/frontend/src/server/auth.ts`                                     |
-| tRPC proxy         | `packages/frontend/src/app/api/trpc/[trpc]/route.ts`                       |
-| Realtime pub/sub   | `packages/backend/src/realtime/pubsub.ts`                                  |
-| Realtime router    | `packages/backend/src/trpc/routers/realtime.ts`                            |
-| WS auth endpoint   | `packages/frontend/src/app/api/ws-auth/route.ts`                           |
-| Realtime hooks     | `packages/frontend/src/lib/use-realtime.ts`                                |
-| Trace components   | `packages/frontend/src/components/trace/`                                  |
-| Tool re-run modal  | `packages/frontend/src/components/trace/ToolRerunModal.tsx`                |
-| Projects router    | `packages/backend/src/trpc/routers/projects.ts`                            |
-| Members router     | `packages/backend/src/trpc/routers/members.ts`                             |
-| Project store      | `packages/frontend/src/lib/project-store.ts`                               |
-| Project layout     | `packages/frontend/src/app/(dashboard)/project/[projectId]/layout.tsx`     |
-| Projects list      | `packages/frontend/src/app/(dashboard)/projects/page.tsx`                  |
-| Tools page         | `packages/frontend/src/app/(dashboard)/project/[projectId]/tools/page.tsx` |
+| Purpose             | Path                                                                       |
+| ------------------- | -------------------------------------------------------------------------- |
+| Prisma schema       | `packages/shared/prisma/schema.prisma`                                     |
+| Prisma config       | `packages/shared/prisma.config.ts`                                         |
+| DB client           | `packages/shared/src/db.ts`                                                |
+| Redis client        | `packages/shared/src/redis.ts`                                             |
+| Ingestion schemas   | `packages/shared/src/schemas/ingestion.ts`                                 |
+| API auth            | `packages/shared/src/auth/apiAuth.ts`                                      |
+| Backend entrypoint  | `packages/backend/src/index.ts`                                            |
+| tRPC router         | `packages/backend/src/trpc/router.ts`                                      |
+| tRPC context        | `packages/backend/src/trpc/context.ts`                                     |
+| Tools tRPC router   | `packages/backend/src/trpc/routers/tools.ts`                               |
+| Tools HTTP registry | `packages/backend/src/routes/tools-registry.ts`                            |
+| Event processing    | `packages/backend/src/ingestion/processEventBatch.ts`                      |
+| Ingestion route     | `packages/backend/src/routes/ingestion.ts`                                 |
+| OTel route          | `packages/backend/src/routes/otel.ts`                                      |
+| Auth config         | `packages/frontend/src/server/auth.ts`                                     |
+| tRPC proxy          | `packages/frontend/src/app/api/trpc/[trpc]/route.ts`                       |
+| Realtime pub/sub    | `packages/backend/src/realtime/pubsub.ts`                                  |
+| Realtime router     | `packages/backend/src/trpc/routers/realtime.ts`                            |
+| WS auth endpoint    | `packages/frontend/src/app/api/ws-auth/route.ts`                           |
+| Realtime hooks      | `packages/frontend/src/lib/use-realtime.ts`                                |
+| Trace components    | `packages/frontend/src/components/trace/`                                  |
+| Tool re-run modal   | `packages/frontend/src/components/trace/ToolRerunModal.tsx`                |
+| Projects router     | `packages/backend/src/trpc/routers/projects.ts`                            |
+| Members router      | `packages/backend/src/trpc/routers/members.ts`                             |
+| Project store       | `packages/frontend/src/lib/project-store.ts`                               |
+| Project layout      | `packages/frontend/src/app/(dashboard)/project/[projectId]/layout.tsx`     |
+| Projects list       | `packages/frontend/src/app/(dashboard)/projects/page.tsx`                  |
+| Tools page          | `packages/frontend/src/app/(dashboard)/project/[projectId]/tools/page.tsx` |
 
 ## Development Commands
 

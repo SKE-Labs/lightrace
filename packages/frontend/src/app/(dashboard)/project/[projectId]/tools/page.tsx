@@ -6,7 +6,7 @@ import { useProjectStore } from "@/lib/project-store";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wrench, Wifi, WifiOff, Play } from "lucide-react";
+import { Wrench, Play } from "lucide-react";
 import { JsonViewer } from "@/components/trace/json-viewer";
 import { ToolRerunModal } from "@/components/trace/tool-rerun-modal";
 
@@ -30,11 +30,11 @@ export default function ToolsPage() {
                 <Wrench className="size-8 mx-auto mb-2 opacity-50" />
                 <p className="text-sm">No tools registered yet.</p>
                 <p className="text-xs mt-1">
-                  Use{" "}
+                  Use <code className="text-xs bg-muted px-1 py-0.5 rounded">defineTool()</code> or{" "}
                   <code className="text-xs bg-muted px-1 py-0.5 rounded">
                     @trace(type=&quot;tool&quot;)
                   </code>{" "}
-                  in your SDK to register invocable tools.
+                  in your SDK to register tools.
                 </p>
               </CardContent>
             </Card>
@@ -51,43 +51,25 @@ export default function ToolsPage() {
                         {tool.toolName}
                       </CardTitle>
                       <div className="flex items-center gap-2">
-                        {tool.status === "online" && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-1 text-xs h-7"
-                            onClick={() => setInvokeTarget(tool.toolName)}
-                          >
-                            <Play className="size-3" />
-                            Invoke
-                          </Button>
-                        )}
-                        <Badge
+                        <Button
                           variant="outline"
-                          className={`text-xs font-mono gap-1 ${
-                            tool.status === "online"
-                              ? "bg-success/15 text-success border-success/30"
-                              : "bg-muted text-muted-foreground"
-                          }`}
+                          size="sm"
+                          className="gap-1 text-xs h-7"
+                          onClick={() => setInvokeTarget(tool.toolName)}
                         >
-                          {tool.status === "online" ? (
-                            <Wifi className="size-3" />
-                          ) : (
-                            <WifiOff className="size-3" />
-                          )}
-                          {tool.status}
-                        </Badge>
+                          <Play className="size-3" />
+                          Invoke
+                        </Button>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-2">
+                    {tool.description && (
+                      <p className="text-sm text-muted-foreground">{String(tool.description)}</p>
+                    )}
                     <div className="flex items-baseline justify-between text-xs">
-                      <span className="text-muted-foreground">SDK Instance</span>
-                      <span className="font-mono text-xs">{tool.sdkInstanceId}</span>
-                    </div>
-                    <div className="flex items-baseline justify-between text-xs">
-                      <span className="text-muted-foreground">Last heartbeat</span>
-                      <span>{new Date(tool.lastHeartbeat).toLocaleString()}</span>
+                      <span className="text-muted-foreground">Callback URL</span>
+                      <span className="font-mono text-xs">{tool.callbackUrl}</span>
                     </div>
                     {tool.inputSchema && (
                       <div className="space-y-1">
