@@ -21,6 +21,9 @@ jobs:
             dockerfile: packages/backend/Dockerfile
           - image: frontend
             dockerfile: packages/frontend/Dockerfile
+          - image: migrator
+            dockerfile: packages/backend/Dockerfile
+            target: migrator
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -46,6 +49,7 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target || '' }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

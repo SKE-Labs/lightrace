@@ -56,12 +56,6 @@ RUN addgroup --system --gid 1001 lightrace && \
 
 COPY --from=builder --chown=lightrace:lightrace /deploy ./
 
-# Prisma CLI wrapper + shared package symlink for `lightrace db migrate/reset`
-RUN PRISMA_JS=$(find /app/node_modules -path "*/prisma/build/index.js" -not -path "*/@prisma/*" | head -1) && \
-    printf '#!/bin/sh\nexec node %s "$@"\n' "$PRISMA_JS" > /usr/local/bin/prisma && \
-    chmod +x /usr/local/bin/prisma && \
-    ln -s $(find /app/node_modules -path "*/@lightrace/shared" -type d | head -1) /app/shared
-
 USER lightrace
 
 EXPOSE 3002 3003
