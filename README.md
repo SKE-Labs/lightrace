@@ -4,6 +4,11 @@
 
 <h1 align="center">LightRace</h1>
 
+<p align="center">
+  <a href="https://github.com/SKE-Labs/lightrace/stargazers"><img src="https://img.shields.io/github/stars/SKE-Labs/lightrace?style=flat-square" alt="GitHub stars" /></a>
+  <a href="https://github.com/SKE-Labs/lightrace/blob/main/LICENSE"><img src="https://img.shields.io/github/license/SKE-Labs/lightrace?style=flat-square" alt="License" /></a>
+</p>
+
 <p align="center">Lightweight, open-source LLM tracing tool with remote tool invocation. Drop-in compatible with <a href="https://langfuse.com">Langfuse</a> Python/JS SDKs, plus its own <code>lightrace-python</code> and <code>lightrace-js</code> SDKs.</p>
 
 ## Features
@@ -214,6 +219,12 @@ BACKEND_URL      — Backend URL (tRPC proxy target)
 INTERNAL_SECRET  — Shared secret for frontend↔backend auth
 WS_PORT          — Backend WebSocket port
 ```
+
+## Related
+
+- [Lightrace CLI](https://github.com/SKE-Labs/lightrace-cli) — self-host with a single command
+- [lightrace-python](https://github.com/SKE-Labs/lightrace-python) — Python SDK
+- [lightrace-js](https://github.com/SKE-Labs/lightrace-js) — TypeScript/JavaScript SDK
 
 ## License
 
