@@ -11,7 +11,7 @@ Quick-start examples showing how to use Lightrace with different LLM providers.
    pnpm dev
    ```
 
-   This starts the backend on http://localhost:3002 and the dashboard on http://localhost:3001.
+   Or use Docker: `docker compose up -d` to start everything on http://localhost:3000.
 
 2. **Configure `.env`** in the example directory you want to run (JS or Python):
    ```bash
@@ -45,7 +45,7 @@ python langchain_example.py
 
 ## View Traces
 
-After running any example, open http://localhost:3001 in your browser.
+After running any example, open http://localhost:3000 (Docker) or http://localhost:3001 (dev mode) in your browser.
 
 Log in with the demo credentials:
 

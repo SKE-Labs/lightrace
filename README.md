@@ -10,7 +10,7 @@
 
 - Compatible with Langfuse v3 (`POST /api/public/ingestion`) and v4 (OpenTelemetry)
 - Native SDKs (`lightrace-python`, `lightrace-js`) with unified `@trace` decorator
-- Remote tool invocation — re-run `@trace(type="tool")` functions from the UI via WebSocket
+- Remote tool invocation — re-run `@trace(type="tool")` functions from the UI
 - Real-time trace updates via WebSocket (Redis Pub/Sub)
 - Trace and observation viewer with token usage breakdown
 - Tools page showing connected SDK instances and registered tools
@@ -23,27 +23,43 @@ LightRace is a monorepo with three packages:
 ```
 packages/
   shared/      @lightrace/shared    — Prisma schema, DB + Redis clients, validation schemas
-  backend/     @lightrace/backend   — Hono server (tRPC + REST ingestion + OTel + Tool WS)
+  backend/     @lightrace/backend   — Hono server (tRPC + REST ingestion + OTel + Tool registry)
   frontend/    @lightrace/frontend  — Next.js 15 UI + Auth.js
 ```
 
-Infrastructure: PostgreSQL + Redis, managed via docker-compose.
+Infrastructure: PostgreSQL + Redis + Caddy (reverse proxy), managed via docker-compose.
 
-The frontend authenticates users via Auth.js and proxies tRPC calls to the backend. SDK ingestion endpoints on the backend use API key auth (Basic Auth) directly. The backend also accepts WebSocket connections from SDKs on port 3003 at `/api/public/tools/ws` for remote tool invocation.
+All traffic enters through Caddy on a single port (default: 3000):
+
+- `/api/public/*` → backend (SDK ingestion, OTLP, tool registration)
+- `/trpc/*` → backend (tRPC)
+- `/ws` → backend WebSocket (real-time subscriptions)
+- `/*` → frontend (dashboard, Auth.js)
 
 ## Quick Start
 
-### Prerequisites
-
-- [Node.js](https://nodejs.org) 20+
-- [pnpm](https://pnpm.io) 10+
-- [Docker](https://www.docker.com)
-
-### Setup
+### Docker Compose (recommended for self-hosting)
 
 ```sh
-# Start PostgreSQL + Redis
+# Copy and configure environment
+cp .env.example .env
+
+# Start everything (Postgres, Redis, Backend, Frontend, Caddy)
 docker compose up -d
+```
+
+Open [http://localhost:3000](http://localhost:3000) and log in with the demo credentials:
+
+- **Email:** `demo@lightrace.dev`
+- **Password:** `password`
+
+### Development Setup
+
+For working on the codebase:
+
+```sh
+# Start infrastructure only (Postgres + Redis)
+docker compose up -d postgres redis
 
 # Install dependencies
 pnpm install
@@ -62,10 +78,7 @@ pnpm db:seed
 pnpm dev
 ```
 
-Open [http://localhost:3001](http://localhost:3001) and log in with the demo credentials:
-
-- **Email:** `demo@lightrace.dev`
-- **Password:** `password`
+In development mode (without Caddy), the dashboard is at [http://localhost:3001](http://localhost:3001).
 
 ### SDK Configuration
 
@@ -79,7 +92,7 @@ from lightrace import Lightrace, trace
 lt = Lightrace(
     public_key="pk-lt-demo",
     secret_key="sk-lt-demo",
-    host="http://localhost:3002",
+    host="http://localhost:3000",
 )
 
 @trace()
@@ -102,7 +115,7 @@ import { LightRace, trace } from "lightrace";
 const lt = new LightRace({
   publicKey: "pk-lt-demo",
   secretKey: "sk-lt-demo",
-  host: "http://localhost:3002",
+  host: "http://localhost:3000",
 });
 
 const search = trace("search", { type: "tool" }, async (query: string) => {
@@ -119,12 +132,12 @@ lt.flush();
 
 #### Langfuse SDKs (also supported)
 
-Point any Langfuse SDK at the backend (port 3002):
+Point any Langfuse SDK at the gateway (port 3000):
 
 ```bash
 export LANGFUSE_PUBLIC_KEY=pk-lt-demo
 export LANGFUSE_SECRET_KEY=sk-lt-demo
-export LANGFUSE_HOST=http://localhost:3002
+export LANGFUSE_HOST=http://localhost:3000
 ```
 
 ## Scripts
@@ -148,6 +161,7 @@ export LANGFUSE_HOST=http://localhost:3002
 - **Monorepo:** Turborepo + pnpm workspaces
 - **Frontend:** Next.js 15 (App Router), shadcn/ui + Tailwind CSS v4
 - **Backend:** Hono, tRPC v11 (fetch adapter + WebSocket subscriptions)
+- **Gateway:** Caddy (reverse proxy, automatic HTTPS)
 - **Auth:** Auth.js v5 (credentials provider, JWT strategy)
 - **ORM:** Prisma 7 + PostgreSQL
 - **Cache/PubSub:** Redis (ioredis)
@@ -156,7 +170,20 @@ export LANGFUSE_HOST=http://localhost:3002
 
 ## Environment Variables
 
-Each package has its own `.env` file. Copy from `.env.example`:
+### Docker Compose (`.env`)
+
+For `docker compose up` — a single flat file:
+
+```
+GATEWAY_PORT=3000            # Caddy exposed port
+PUBLIC_URL=http://localhost:3000
+DB_PASSWORD=lightrace
+AUTH_SECRET=dev-auth-secret
+INTERNAL_SECRET=dev-internal-secret
+# LIGHTRACE_DOMAIN=          # Set a domain for automatic HTTPS
+```
+
+### Development (per-package `.env`)
 
 **`packages/shared/.env`** — Database + Redis:
 

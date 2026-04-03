@@ -26,7 +26,7 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
               url() {
                 // This is called lazily when the first subscription connects.
                 // By then, wsUrlRef should be populated.
-                return wsUrlRef.current ?? "ws://localhost:3003";
+                return wsUrlRef.current ?? "ws://localhost:3000/ws";
               },
             }),
           }),

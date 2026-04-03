@@ -1,15 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/server/auth";
 
 const INTERNAL_SECRET = process.env.INTERNAL_SECRET || "dev-internal-secret";
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3002";
-const WS_PORT = process.env.WS_PORT || "3003";
 
 /**
  * Returns WebSocket connection parameters for the authenticated user.
- * The frontend calls this to get the WS URL with embedded auth.
+ * The WS URL uses the /ws path which Caddy proxies to the backend WS server.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const session = await auth();
 
   if (!session?.user) {
@@ -19,8 +17,11 @@ export async function GET() {
     );
   }
 
-  // Build WS URL with auth params
-  const backendHost = new URL(BACKEND_URL).hostname;
+  // Derive WS URL from the incoming request's host (works behind Caddy/reverse proxy)
+  const host =
+    request.headers.get("x-forwarded-host") || request.headers.get("host") || "localhost:3000";
+  const proto = request.headers.get("x-forwarded-proto") === "https" ? "wss" : "ws";
+
   const params = new URLSearchParams({
     secret: INTERNAL_SECRET,
     userId: session.user.id ?? "",
@@ -30,6 +31,6 @@ export async function GET() {
   return NextResponse.json({
     code: 200,
     message: "OK",
-    response: { wsUrl: `ws://${backendHost}:${WS_PORT}?${params.toString()}` },
+    response: { wsUrl: `${proto}://${host}/ws?${params.toString()}` },
   });
 }

@@ -1,19 +1,28 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
+    /* Base */
+    "target": "es2022",
+    "lib": ["es2022"],
+    "module": "preserve",
     "moduleResolution": "bundler",
-    "lib": ["ES2022"],
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
     "resolveJsonModule": true,
+    "allowJs": true,
     "isolatedModules": true,
-    "outDir": "./dist",
+    "moduleDetection": "force",
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+
+    /* Strictness */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+
+    /* Library (consumed by backend + frontend via workspace) */
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "noEmit": true
+    "noEmit": true,
+    "outDir": "./dist"
   },
   "include": ["src/**/*.ts", "prisma/**/*.ts"],
   "exclude": ["node_modules", "dist"]

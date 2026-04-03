@@ -1,16 +1,25 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
+    /* Base */
+    "target": "es2022",
+    "lib": ["es2022"],
+    "module": "preserve",
     "moduleResolution": "bundler",
-    "lib": ["ES2022"],
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
     "resolveJsonModule": true,
+    "allowJs": true,
     "isolatedModules": true,
-    "outDir": "./dist",
-    "noEmit": true
+    "moduleDetection": "force",
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+
+    /* Strictness */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+
+    /* Bundler (tsup handles emit — TS is linter only) */
+    "noEmit": true,
+    "outDir": "./dist"
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]

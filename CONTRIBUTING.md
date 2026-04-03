@@ -38,7 +38,7 @@ pnpm dev
 ```
 
 - Frontend: http://localhost:3001 (login with `demo@lightrace.dev` / `password`)
-- Backend: http://localhost:3002 (health check at `/health`)
+- Backend: http://localhost:3000 (health check at `/health`)
 
 ### SDK Testing
 
@@ -50,7 +50,7 @@ from lightrace import Lightrace, trace
 lt = Lightrace(
     public_key="pk-lt-demo",
     secret_key="sk-lt-demo",
-    host="http://localhost:3002",
+    host="http://localhost:3000",
 )
 
 @trace()
@@ -70,7 +70,7 @@ lt.flush()
 ```bash
 export LANGFUSE_PUBLIC_KEY=pk-lt-demo
 export LANGFUSE_SECRET_KEY=sk-lt-demo
-export LANGFUSE_HOST=http://localhost:3002
+export LANGFUSE_HOST=http://localhost:3000
 ```
 
 ## Project Structure

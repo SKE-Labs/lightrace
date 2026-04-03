@@ -1,0 +1,25 @@
+{
+	auto_https off
+}
+
+:{$LIGHTRACE_PORT:3000} {
+	# SDK ingestion + tool registration (high-throughput, bypass frontend)
+	handle /api/public/* {
+		reverse_proxy lightrace-backend:{$BACKEND_PORT:3002}
+	}
+
+	# tRPC API (frontend server-side → backend)
+	handle /trpc/* {
+		reverse_proxy lightrace-backend:{$BACKEND_PORT:3002}
+	}
+
+	# WebSocket subscriptions (tRPC real-time from browser)
+	handle /ws {
+		reverse_proxy lightrace-backend:{$WS_PORT:3003}
+	}
+
+	# Everything else → Next.js dashboard
+	handle {
+		reverse_proxy lightrace-frontend:{$FRONTEND_PORT:3001}
+	}
+}

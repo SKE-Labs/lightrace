@@ -130,7 +130,7 @@ function ApiKeysTab() {
 lt = Lightrace(
     public_key="${newKeyResult.publicKey}",
     secret_key="${newKeyResult.secretKey}",
-    host="http://localhost:3002"
+    host="http://localhost:3000"
 )`}
                     </pre>
                   </div>

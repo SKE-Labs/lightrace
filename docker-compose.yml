@@ -1,12 +1,11 @@
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: lightrace-db
     environment:
       POSTGRES_USER: lightrace
-      POSTGRES_PASSWORD: lightrace
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-lightrace}
       POSTGRES_DB: lightrace
-    ports:
-      - "127.0.0.1:5435:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -14,11 +13,12 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    networks:
+      - lightrace
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "127.0.0.1:6379:6379"
+    container_name: lightrace-redis
     volumes:
       - redisdata:/data
     healthcheck:
@@ -26,7 +26,110 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    networks:
+      - lightrace
+
+  migrate:
+    container_name: lightrace-migrate
+    build:
+      context: .
+      dockerfile: packages/backend/Dockerfile
+      target: migrator
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://lightrace:${DB_PASSWORD:-lightrace}@lightrace-db:5432/lightrace
+    networks:
+      - lightrace
+
+  backend:
+    image: ${BACKEND_IMAGE:-ghcr.io/lightrace/backend:latest}
+    container_name: lightrace-backend
+    build:
+      context: .
+      dockerfile: packages/backend/Dockerfile
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://lightrace:${DB_PASSWORD:-lightrace}@lightrace-db:5432/lightrace
+      REDIS_URL: redis://lightrace-redis:6379
+      PORT: "3002"
+      WS_PORT: "3003"
+      INTERNAL_SECRET: ${INTERNAL_SECRET:-dev-internal-secret}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3002/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - lightrace
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-ghcr.io/lightrace/frontend:latest}
+    container_name: lightrace-frontend
+    build:
+      context: .
+      dockerfile: packages/frontend/Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://lightrace:${DB_PASSWORD:-lightrace}@lightrace-db:5432/lightrace
+      REDIS_URL: redis://lightrace-redis:6379
+      AUTH_SECRET: ${AUTH_SECRET:-dev-auth-secret}
+      AUTH_URL: ${PUBLIC_URL:-http://localhost:3000}
+      BACKEND_URL: http://lightrace-backend:3002
+      INTERNAL_SECRET: ${INTERNAL_SECRET:-dev-internal-secret}
+      WS_PORT: "3003"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3001/',{redirect:'manual'}).then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - lightrace
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: lightrace-gateway
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    ports:
+      - "${GATEWAY_PORT:-3000}:3000"
+    environment:
+      LIGHTRACE_DOMAIN: ${LIGHTRACE_DOMAIN:-localhost}
+      LIGHTRACE_PORT: "3000"
+      BACKEND_PORT: "3002"
+      FRONTEND_PORT: "3001"
+      WS_PORT: "3003"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - lightrace
 
 volumes:
   pgdata:
   redisdata:
+  caddy_data:
+  caddy_config:
+
+networks:
+  lightrace:
+    driver: bridge
