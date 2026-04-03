@@ -44,7 +44,7 @@ services:
       - lightrace
 
   backend:
-    image: ${BACKEND_IMAGE:-ghcr.io/lightrace/backend:latest}
+    image: ${BACKEND_IMAGE:-ghcr.io/ske-labs/backend:latest}
     container_name: lightrace-backend
     build:
       context: .
@@ -70,7 +70,7 @@ services:
       - lightrace
 
   frontend:
-    image: ${FRONTEND_IMAGE:-ghcr.io/lightrace/frontend:latest}
+    image: ${FRONTEND_IMAGE:-ghcr.io/ske-labs/frontend:latest}
     container_name: lightrace-frontend
     build:
       context: .
