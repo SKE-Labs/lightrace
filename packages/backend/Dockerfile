@@ -56,6 +56,10 @@ RUN addgroup --system --gid 1001 lightrace && \
 
 COPY --from=builder --chown=lightrace:lightrace /deploy ./
 
+# Prisma CLI + schema symlinks for `lightrace db migrate/reset`
+RUN ln -s $(find /app/node_modules -path "*/.pnpm/node_modules/.bin/prisma" | head -1) /usr/local/bin/prisma && \
+    ln -s $(find /app/node_modules -path "*/@lightrace/shared" -type d | head -1) /app/shared
+
 USER lightrace
 
 EXPOSE 3002 3003
