@@ -87,7 +87,7 @@ services:
       INTERNAL_SECRET: ${INTERNAL_SECRET:-dev-internal-secret}
       WS_PORT: "3003"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/login || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/api/public/health || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 10
