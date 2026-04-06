@@ -2,39 +2,46 @@ import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hash } from "bcryptjs";
-import { createHash, randomBytes } from "crypto";
+import { createHash } from "crypto";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const db = new PrismaClient({ adapter });
 
+const SEED_EMAIL = process.env.SEED_USER_EMAIL || "demo@lightrace.dev";
+const SEED_PASSWORD = process.env.SEED_USER_PASSWORD || "password";
+const SEED_NAME = process.env.SEED_USER_NAME || "Demo User";
+const SEED_PROJECT_NAME = process.env.SEED_PROJECT_NAME || "Demo Project";
+const SEED_PUBLIC_KEY = process.env.SEED_PUBLIC_KEY || "pk-lt-demo";
+const SEED_SECRET_KEY = process.env.SEED_SECRET_KEY || "sk-lt-demo";
+
 async function main() {
-  // Create demo user
-  const hashedPassword = await hash("password", 12);
+  // Create user
+  const hashedPassword = await hash(SEED_PASSWORD, 12);
   const user = await db.user.upsert({
-    where: { email: "demo@lightrace.dev" },
+    where: { email: SEED_EMAIL },
     update: {},
     create: {
-      email: "demo@lightrace.dev",
+      email: SEED_EMAIL,
       password: hashedPassword,
-      name: "Demo User",
+      name: SEED_NAME,
     },
   });
   console.log(`User: ${user.email}`);
 
-  // Create demo project
+  // Create project
   const project = await db.project.upsert({
     where: { id: "demo-project" },
-    update: {},
+    update: { name: SEED_PROJECT_NAME },
     create: {
       id: "demo-project",
-      name: "Demo Project",
+      name: SEED_PROJECT_NAME,
     },
   });
   console.log(`Project: ${project.name} (${project.id})`);
 
-  // Create demo API keys
-  const publicKey = "pk-lt-demo";
-  const secretKey = "sk-lt-demo";
+  // Create API keys
+  const publicKey = SEED_PUBLIC_KEY;
+  const secretKey = SEED_SECRET_KEY;
   const hashedSecretKey = createHash("sha256").update(secretKey).digest("hex");
 
   await db.apiKey.upsert({
@@ -65,7 +72,7 @@ async function main() {
   console.log(`Membership: ${user.email} → ${project.name} (OWNER)`);
 
   console.log("\n--- LightRace seeded ---");
-  console.log(`Login: demo@lightrace.dev / password`);
+  console.log(`Login: ${SEED_EMAIL} / ${SEED_PASSWORD}`);
   console.log(`SDK:   public_key=${publicKey}  secret_key=${secretKey}`);
 }
 

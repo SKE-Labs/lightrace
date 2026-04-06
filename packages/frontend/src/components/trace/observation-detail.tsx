@@ -11,7 +11,7 @@ import { FormattedView } from "./formatted-view";
 import { ToolRerunModal } from "./tool-rerun-modal";
 import { useProjectStore } from "@/lib/project-store";
 import { formatDuration, formatTokens, formatCost } from "@/lib/utils";
-import { Route, Copy, Clock, Coins, Hash, ChevronRight, RotateCcw } from "lucide-react";
+import { Route, Copy, Clock, Coins, Hash, ChevronRight, RotateCcw, Check } from "lucide-react";
 import { getObservationIcon } from "@/lib/observation-icons";
 import type { Observation, Trace } from "@prisma/client";
 
@@ -38,25 +38,32 @@ function TraceDetailPanel({ trace }: { trace: Trace }) {
   return (
     <TooltipProvider>
       <div className="flex h-full flex-col">
-        <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-          <Route className="size-4 shrink-0 text-chart-4" />
-          <h2 className="text-sm font-medium truncate">{trace.name || trace.id}</h2>
+        {/* Header */}
+        <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
+          <Route className="size-4 shrink-0 text-primary" />
+          <h2 className="text-sm font-semibold truncate">{trace.name || trace.id}</h2>
         </div>
-        <Tabs defaultValue="io" className="flex-1 flex flex-col min-h-0">
-          <TabsList className="mx-4 mt-2 w-fit">
-            <TabsTrigger value="io" className="text-xs">
-              I/O
+
+        <Tabs defaultValue="input" className="flex-1 flex flex-col min-h-0">
+          <TabsList variant="line" className="mx-4 mt-1 gap-0">
+            <TabsTrigger value="input" className="text-xs px-3">
+              Input
             </TabsTrigger>
-            <TabsTrigger value="metadata" className="text-xs">
+            <TabsTrigger value="output" className="text-xs px-3">
+              Output
+            </TabsTrigger>
+            <TabsTrigger value="metadata" className="text-xs px-3">
               Metadata
             </TabsTrigger>
           </TabsList>
           <div className="flex-1 overflow-auto min-h-0 p-4">
-            <TabsContent value="io" className="mt-0 space-y-4">
-              <Section title="Input" data={trace.input} showToggle collapsible />
-              <Section title="Output" data={trace.output} showToggle collapsible />
+            <TabsContent value="input" className="mt-0">
+              <Section data={trace.input} showToggle />
             </TabsContent>
-            <TabsContent value="metadata" className="mt-0 space-y-4">
+            <TabsContent value="output" className="mt-0">
+              <Section data={trace.output} showToggle />
+            </TabsContent>
+            <TabsContent value="metadata" className="mt-0 space-y-3">
               <MetadataRow label="ID" value={trace.id} mono copyable />
               <MetadataRow label="Timestamp" value={new Date(trace.timestamp).toLocaleString()} />
               {trace.sessionId && (
@@ -66,7 +73,7 @@ function TraceDetailPanel({ trace }: { trace: Trace }) {
               {trace.release && <MetadataRow label="Release" value={trace.release} />}
               {trace.version && <MetadataRow label="Version" value={trace.version} />}
               {trace.tags.length > 0 && (
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <span className="text-xs text-muted-foreground">Tags</span>
                   <div className="flex gap-1 flex-wrap">
                     {trace.tags.map((tag) => (
@@ -78,9 +85,12 @@ function TraceDetailPanel({ trace }: { trace: Trace }) {
                 </div>
               )}
               {trace.metadata && (
-                <Section title="Metadata" data={trace.metadata}>
-                  <JsonViewer data={trace.metadata} />
-                </Section>
+                <div className="space-y-1.5">
+                  <span className="text-xs text-muted-foreground">Metadata</span>
+                  <div className="rounded-md border border-border bg-muted/30 p-3">
+                    <JsonViewer data={trace.metadata} />
+                  </div>
+                </div>
               )}
             </TabsContent>
           </div>
@@ -102,36 +112,33 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
   return (
     <TooltipProvider>
       <div className="flex h-full flex-col">
-        {/* Header row 1: icon + name + level + re-run */}
-        <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+        {/* Header */}
+        <div className="flex items-center gap-2.5 border-b border-border px-4 py-3">
           <Icon className={`size-4 shrink-0 ${color}`} />
-          <h2 className="text-sm font-medium truncate">{observation.name || observation.id}</h2>
-          {isTool && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="ml-auto gap-1 text-xs h-7"
-              onClick={() => setRerunOpen(true)}
-            >
-              <RotateCcw className="size-3" />
-              Re-run
-            </Button>
-          )}
-          {observation.level === "ERROR" && (
-            <Badge variant="destructive" className={cn("text-xs", !isTool && "ml-auto")}>
-              ERROR
-            </Badge>
-          )}
-          {observation.level === "WARNING" && (
-            <Badge
-              className={cn(
-                "text-xs bg-warning/15 text-warning border-warning/30",
-                !isTool && "ml-auto",
-              )}
-            >
-              WARNING
-            </Badge>
-          )}
+          <h2 className="text-sm font-semibold truncate">{observation.name || observation.id}</h2>
+          <div className="flex items-center gap-1.5 ml-auto">
+            {observation.level === "ERROR" && (
+              <Badge variant="destructive" className="text-xs">
+                ERROR
+              </Badge>
+            )}
+            {observation.level === "WARNING" && (
+              <Badge className="text-xs bg-warning/15 text-warning border-warning/30">
+                WARNING
+              </Badge>
+            )}
+            {isTool && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs h-7"
+                onClick={() => setRerunOpen(true)}
+              >
+                <RotateCcw className="size-3" />
+                Re-run
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Tool re-run modal */}
@@ -152,13 +159,10 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
           />
         )}
 
-        {/* Header row 2: metric badges */}
+        {/* Metric badges */}
         <div className="flex flex-wrap items-center gap-1.5 px-4 py-2.5 border-b border-border">
           {duration !== null && duration > 0 && (
-            <Badge variant="outline" className="text-xs font-mono gap-1">
-              <Clock className="size-3" />
-              {formatDuration(duration)}
-            </Badge>
+            <MetricBadge icon={Clock} label={formatDuration(duration)} />
           )}
           {observation.model && (
             <Badge variant="outline" className="text-xs font-mono">
@@ -168,10 +172,7 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
           {observation.totalTokens > 0 && (
             <Tooltip>
               <TooltipTrigger className="cursor-default">
-                <Badge variant="outline" className="text-xs font-mono gap-1">
-                  <Hash className="size-3" />
-                  {formatTokens(observation.totalTokens)}
-                </Badge>
+                <MetricBadge icon={Hash} label={formatTokens(observation.totalTokens)} />
               </TooltipTrigger>
               <TooltipContent>
                 <div className="text-xs space-y-1">
@@ -184,10 +185,7 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
           {observation.totalCost !== null && Number(observation.totalCost) > 0 && (
             <Tooltip>
               <TooltipTrigger className="cursor-default">
-                <Badge variant="outline" className="text-xs font-mono gap-1">
-                  <Coins className="size-3" />
-                  {formatCost(Number(observation.totalCost))}
-                </Badge>
+                <MetricBadge icon={Coins} label={formatCost(Number(observation.totalCost))} />
               </TooltipTrigger>
               <TooltipContent>
                 <div className="text-xs space-y-1">
@@ -202,13 +200,12 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
             </Tooltip>
           )}
           {observation.completionStartTime && duration !== null && (
-            <Badge variant="outline" className="text-xs font-mono gap-1">
-              TTFT{" "}
-              {formatDuration(
+            <MetricBadge
+              label={`TTFT ${formatDuration(
                 new Date(observation.completionStartTime).getTime() -
                   new Date(observation.startTime).getTime(),
-              )}
-            </Badge>
+              )}`}
+            />
           )}
         </div>
 
@@ -218,32 +215,34 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
             <span className="text-xs text-destructive flex-1 whitespace-pre-wrap break-words font-mono">
               {observation.statusMessage}
             </span>
-            <button
-              onClick={() => navigator.clipboard.writeText(observation.statusMessage!)}
-              className="text-destructive/70 hover:text-destructive transition-colors shrink-0 mt-0.5"
-              title="Copy error"
-            >
-              <Copy className="size-3.5" />
-            </button>
+            <CopyButton
+              text={observation.statusMessage}
+              className="text-destructive/70 hover:text-destructive"
+            />
           </div>
         )}
 
-        {/* Tabs: I/O + Metadata */}
-        <Tabs defaultValue="io" className="flex-1 flex flex-col min-h-0">
-          <TabsList className="mx-4 mt-2 w-fit">
-            <TabsTrigger value="io" className="text-xs">
-              I/O
+        {/* Tabs */}
+        <Tabs defaultValue="input" className="flex-1 flex flex-col min-h-0">
+          <TabsList variant="line" className="mx-4 mt-1 gap-0">
+            <TabsTrigger value="input" className="text-xs px-3">
+              Input
             </TabsTrigger>
-            <TabsTrigger value="metadata" className="text-xs">
+            <TabsTrigger value="output" className="text-xs px-3">
+              Output
+            </TabsTrigger>
+            <TabsTrigger value="metadata" className="text-xs px-3">
               Metadata
             </TabsTrigger>
           </TabsList>
           <div className="flex-1 overflow-auto min-h-0 p-4">
-            <TabsContent value="io" className="mt-0 space-y-4">
-              <Section title="Input" data={observation.input} showToggle />
-              <Section title="Output" data={observation.output} showToggle />
+            <TabsContent value="input" className="mt-0">
+              <Section data={observation.input} showToggle />
             </TabsContent>
-            <TabsContent value="metadata" className="mt-0 space-y-4">
+            <TabsContent value="output" className="mt-0">
+              <Section data={observation.output} showToggle />
+            </TabsContent>
+            <TabsContent value="metadata" className="mt-0 space-y-3">
               <MetadataRow label="ID" value={observation.id} mono copyable />
               <MetadataRow label="Trace ID" value={observation.traceId} mono copyable />
               <MetadataRow label="Start" value={new Date(observation.startTime).toLocaleString()} />
@@ -259,14 +258,20 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
               )}
               {observation.version && <MetadataRow label="Version" value={observation.version} />}
               {observation.modelParameters && (
-                <Section title="Model Parameters" data={observation.modelParameters}>
-                  <JsonViewer data={observation.modelParameters} />
-                </Section>
+                <div className="space-y-1.5">
+                  <span className="text-xs text-muted-foreground">Model Parameters</span>
+                  <div className="rounded-md border border-border bg-muted/30 p-3">
+                    <JsonViewer data={observation.modelParameters} />
+                  </div>
+                </div>
               )}
               {observation.metadata && (
-                <Section title="Metadata" data={observation.metadata}>
-                  <JsonViewer data={observation.metadata} />
-                </Section>
+                <div className="space-y-1.5">
+                  <span className="text-xs text-muted-foreground">Metadata</span>
+                  <div className="rounded-md border border-border bg-muted/30 p-3">
+                    <JsonViewer data={observation.metadata} />
+                  </div>
+                </div>
               )}
             </TabsContent>
           </div>
@@ -276,103 +281,102 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
   );
 }
 
+function MetricBadge({
+  icon: Icon,
+  label,
+}: {
+  icon?: React.ComponentType<{ className?: string }>;
+  label: string;
+}) {
+  return (
+    <Badge variant="outline" className="text-xs font-mono gap-1">
+      {Icon && <Icon className="size-3" />}
+      {label}
+    </Badge>
+  );
+}
+
 function Section({
-  title,
   children,
   data,
   showToggle,
-  collapsible,
-  defaultOpen = true,
 }: {
-  title: string;
   children?: React.ReactNode;
   data?: unknown;
   showToggle?: boolean;
-  collapsible?: boolean;
-  defaultOpen?: boolean;
 }) {
   const [viewMode, setViewMode] = useState<"formatted" | "raw">("formatted");
-  const [open, setOpen] = useState(defaultOpen);
   const hasData = data !== undefined && data !== null;
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        {collapsible ? (
-          <button onClick={() => setOpen(!open)} className="inline-flex items-center gap-1">
-            <ChevronRight
-              className={cn(
-                "size-3.5 text-muted-foreground transition-transform",
-                open && "rotate-90",
-              )}
-            />
-            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              {title}
-            </h3>
-          </button>
-        ) : (
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            {title}
-          </h3>
-        )}
-        <div className="flex items-center gap-2">
-          {showToggle && hasData && open && (
-            <div className="flex rounded-md border border-border text-xs overflow-hidden">
-              <button
-                onClick={() => setViewMode("formatted")}
-                className={cn(
-                  "px-2 py-0.5 transition-colors",
-                  viewMode === "formatted"
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                Formatted
-              </button>
-              <button
-                onClick={() => setViewMode("raw")}
-                className={cn(
-                  "px-2 py-0.5 transition-colors border-l border-border",
-                  viewMode === "raw"
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                Raw
-              </button>
-            </div>
-          )}
-          {hasData && open && (
+      {/* Toolbar row */}
+      <div className="flex items-center justify-end gap-2">
+        {showToggle && hasData && (
+          <div className="flex rounded-md border border-border text-xs overflow-hidden">
             <button
-              onClick={() =>
-                navigator.clipboard.writeText(
-                  typeof data === "string" ? data : JSON.stringify(data, null, 2),
-                )
-              }
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              title="Copy to clipboard"
+              onClick={() => setViewMode("formatted")}
+              className={cn(
+                "px-2.5 py-1 transition-colors",
+                viewMode === "formatted"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
             >
-              <Copy className="size-3.5" />
+              Formatted
             </button>
-          )}
-        </div>
+            <button
+              onClick={() => setViewMode("raw")}
+              className={cn(
+                "px-2.5 py-1 transition-colors border-l border-border",
+                viewMode === "raw"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              JSON
+            </button>
+          </div>
+        )}
+        {hasData && (
+          <CopyButton
+            text={typeof data === "string" ? data : JSON.stringify(data, null, 2)}
+            className="text-muted-foreground hover:text-foreground"
+          />
+        )}
       </div>
-      {(!collapsible || open) && (
-        <>
-          {showToggle ? (
-            viewMode === "formatted" ? (
-              <FormattedView data={data} />
-            ) : (
-              <div className="rounded-md border border-border bg-muted/50 p-3">
-                <JsonViewer data={data} />
-              </div>
-            )
-          ) : (
-            <div className="rounded-md border border-border bg-muted/50 p-3">{children}</div>
-          )}
-        </>
+
+      {/* Content */}
+      {showToggle ? (
+        viewMode === "formatted" ? (
+          <FormattedView data={data} />
+        ) : (
+          <div className="rounded-md border border-border bg-muted/30 p-3">
+            <JsonViewer data={data} />
+          </div>
+        )
+      ) : (
+        <div className="rounded-md border border-border bg-muted/30 p-3">{children}</div>
       )}
     </div>
+  );
+}
+
+function CopyButton({ text, className }: { text: string; className?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <button
+      onClick={() => {
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+      className={cn("transition-colors shrink-0", className)}
+      title="Copy to clipboard"
+    >
+      {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+    </button>
   );
 }
 
@@ -391,15 +395,12 @@ function MetadataRow({
     <div className="flex items-baseline justify-between gap-4 group">
       <span className="text-xs text-muted-foreground shrink-0">{label}</span>
       <div className="flex items-center gap-1.5 min-w-0">
-        <span className={`text-sm truncate ${mono ? "font-mono text-xs" : ""}`}>{value}</span>
+        <span className={cn("text-sm truncate", mono && "font-mono text-xs")}>{value}</span>
         {copyable && (
-          <button
-            onClick={() => navigator.clipboard.writeText(value)}
-            className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-            title="Copy"
-          >
-            <Copy className="size-3 text-muted-foreground hover:text-foreground" />
-          </button>
+          <CopyButton
+            text={value}
+            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground"
+          />
         )}
       </div>
     </div>
