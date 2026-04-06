@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo } from "react";
 import { cn, formatDuration, formatCost } from "@/lib/utils";
 import { getObservationIcon } from "@/lib/observation-icons";
 import { Route, ChevronRight } from "lucide-react";
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import type { Observation } from "@prisma/client";
 
 interface TraceTreeProps {
@@ -178,13 +178,17 @@ export function TraceTree({ trace, observations, selectedId, onSelect }: TraceTr
       if (o.endTime) times.push(new Date(o.endTime).getTime());
       return times;
     });
-    const start = allTimes.length > 0 ? Math.min(...allTimes) : new Date(trace.timestamp).getTime();
-    const end = allTimes.length > 0 ? Math.max(...allTimes) : start;
+    let start = new Date(trace.timestamp).getTime();
+    let end = start;
+    for (const t of allTimes) {
+      if (t < start) start = t;
+      if (t > end) end = t;
+    }
     return end - start;
   }, [observations, trace.timestamp]);
 
   return (
-    <TooltipProvider>
+    <>
       <div className="flex flex-col">
         {/* Toolbar */}
         {observations.length > 0 && (
@@ -244,6 +248,6 @@ export function TraceTree({ trace, observations, selectedId, onSelect }: TraceTr
           <div className="px-6 py-8 text-center text-sm text-muted-foreground">No observations</div>
         )}
       </div>
-    </TooltipProvider>
+    </>
   );
 }

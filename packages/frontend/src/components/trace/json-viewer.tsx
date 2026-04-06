@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { useState, useMemo } from "react";
 
 interface JsonViewerProps {
   data: unknown;
@@ -9,32 +8,33 @@ interface JsonViewerProps {
 }
 
 export function JsonViewer({ data, defaultExpanded = true }: JsonViewerProps) {
-  if (data === null || data === undefined) {
+  const parsed = useMemo(() => {
+    if (data === null || data === undefined) return data;
+    if (typeof data === "string") {
+      try {
+        return JSON.parse(data);
+      } catch {
+        return data;
+      }
+    }
+    return data;
+  }, [data]);
+
+  if (parsed === null || parsed === undefined) {
     return <span className="text-muted-foreground italic">null</span>;
   }
 
-  if (typeof data === "string") {
-    // Try to parse as JSON
-    try {
-      const parsed = JSON.parse(data);
-      return (
-        <div className="overflow-auto font-mono text-xs">
-          <JsonNode data={parsed} depth={0} defaultExpanded={defaultExpanded} />
-        </div>
-      );
-    } catch {
-      // Render as string with wrapping
-      return (
-        <div className="overflow-auto whitespace-pre-wrap font-mono text-xs text-foreground">
-          {data}
-        </div>
-      );
-    }
+  if (typeof parsed === "string") {
+    return (
+      <div className="overflow-auto whitespace-pre-wrap font-mono text-xs text-foreground">
+        {parsed}
+      </div>
+    );
   }
 
   return (
     <div className="overflow-auto font-mono text-xs">
-      <JsonNode data={data} depth={0} defaultExpanded={defaultExpanded} />
+      <JsonNode data={parsed} depth={0} defaultExpanded={defaultExpanded} />
     </div>
   );
 }

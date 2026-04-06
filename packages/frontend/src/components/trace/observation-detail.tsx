@@ -1,17 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { CopyButton } from "@/components/ui/copy-button";
+import { SegmentedToggle } from "@/components/ui/segmented-toggle";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { JsonViewer } from "./json-viewer";
 import { FormattedView } from "./formatted-view";
 import { ToolRerunModal } from "./tool-rerun-modal";
 import { useProjectStore } from "@/lib/project-store";
 import { formatDuration, formatTokens, formatCost } from "@/lib/utils";
-import { Route, Copy, Clock, Coins, Hash, ChevronRight, RotateCcw, Check } from "lucide-react";
+import { Route, Clock, Coins, Hash, RotateCcw } from "lucide-react";
 import { getObservationIcon } from "@/lib/observation-icons";
 import type { Observation, Trace } from "@prisma/client";
 
@@ -34,36 +35,86 @@ export function ObservationDetail(props: Props) {
   return <ObservationDetailPanel observation={props.observation} />;
 }
 
-function TraceDetailPanel({ trace }: { trace: Trace }) {
+// --- Scroll-to-section tab bar ---
+
+function SectionNav({
+  items,
+  activeId,
+  onSelect,
+}: {
+  items: { id: string; label: string }[];
+  activeId: string;
+  onSelect: (id: string) => void;
+}) {
   return (
-    <TooltipProvider>
+    <div className="flex gap-0 mx-4 mt-1 border-b border-border">
+      {items.map((item) => (
+        <button
+          key={item.id}
+          onClick={() => onSelect(item.id)}
+          className={cn(
+            "text-xs px-3 py-2 -mb-px border-b-2 transition-colors",
+            activeId === item.id
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TraceDetailPanel({ trace }: { trace: Trace }) {
+  const [activeSection, setActiveSection] = useState("input");
+  const inputRef = useRef<HTMLDivElement>(null);
+  const outputRef = useRef<HTMLDivElement>(null);
+  const metadataRef = useRef<HTMLDivElement>(null);
+
+  const refs = { input: inputRef, output: outputRef, metadata: metadataRef };
+
+  const scrollTo = (id: string) => {
+    setActiveSection(id);
+    refs[id as keyof typeof refs]?.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  return (
+    <>
       <div className="flex h-full flex-col">
         {/* Header */}
         <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
           <Route className="size-4 shrink-0 text-primary" />
-          <h2 className="text-sm font-semibold truncate">{trace.name || trace.id}</h2>
+          <h2 className="text-sm font-medium truncate">{trace.name || trace.id}</h2>
         </div>
 
-        <Tabs defaultValue="input" className="flex-1 flex flex-col min-h-0">
-          <TabsList variant="line" className="mx-4 mt-1 gap-0">
-            <TabsTrigger value="input" className="text-xs px-3">
-              Input
-            </TabsTrigger>
-            <TabsTrigger value="output" className="text-xs px-3">
-              Output
-            </TabsTrigger>
-            <TabsTrigger value="metadata" className="text-xs px-3">
+        <SectionNav
+          items={[
+            { id: "input", label: "Input" },
+            { id: "output", label: "Output" },
+            { id: "metadata", label: "Metadata" },
+          ]}
+          activeId={activeSection}
+          onSelect={scrollTo}
+        />
+
+        <div className="flex-1 overflow-auto min-h-0 p-4 space-y-8">
+          {/* Input */}
+          <div ref={inputRef}>
+            <Section title="Input" data={trace.input} showToggle />
+          </div>
+
+          {/* Output */}
+          <div ref={outputRef}>
+            <Section title="Output" data={trace.output} showToggle />
+          </div>
+
+          {/* Metadata */}
+          <div ref={metadataRef}>
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
               Metadata
-            </TabsTrigger>
-          </TabsList>
-          <div className="flex-1 overflow-auto min-h-0 p-4">
-            <TabsContent value="input" className="mt-0">
-              <Section data={trace.input} showToggle />
-            </TabsContent>
-            <TabsContent value="output" className="mt-0">
-              <Section data={trace.output} showToggle />
-            </TabsContent>
-            <TabsContent value="metadata" className="mt-0 space-y-3">
+            </h3>
+            <div className="space-y-3">
               <MetadataRow label="ID" value={trace.id} mono copyable />
               <MetadataRow label="Timestamp" value={new Date(trace.timestamp).toLocaleString()} />
               {trace.sessionId && (
@@ -87,22 +138,34 @@ function TraceDetailPanel({ trace }: { trace: Trace }) {
               {trace.metadata && (
                 <div className="space-y-1.5">
                   <span className="text-xs text-muted-foreground">Metadata</span>
-                  <div className="rounded-md border border-border bg-muted/30 p-3">
+                  <div className="rounded-md border border-border p-3">
                     <JsonViewer data={trace.metadata} />
                   </div>
                 </div>
               )}
-            </TabsContent>
+            </div>
           </div>
-        </Tabs>
+        </div>
       </div>
-    </TooltipProvider>
+    </>
   );
 }
 
 function ObservationDetailPanel({ observation }: { observation: Observation }) {
   const projectId = useProjectStore((s) => s.projectId);
   const [rerunOpen, setRerunOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("input");
+  const inputRef = useRef<HTMLDivElement>(null);
+  const outputRef = useRef<HTMLDivElement>(null);
+  const metadataRef = useRef<HTMLDivElement>(null);
+
+  const refs = { input: inputRef, output: outputRef, metadata: metadataRef };
+
+  const scrollTo = (id: string) => {
+    setActiveSection(id);
+    refs[id as keyof typeof refs]?.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const duration = observation.endTime
     ? new Date(observation.endTime).getTime() - new Date(observation.startTime).getTime()
     : null;
@@ -110,12 +173,12 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
   const isTool = observation.type === "TOOL";
 
   return (
-    <TooltipProvider>
+    <>
       <div className="flex h-full flex-col">
         {/* Header */}
         <div className="flex items-center gap-2.5 border-b border-border px-4 py-3">
           <Icon className={`size-4 shrink-0 ${color}`} />
-          <h2 className="text-sm font-semibold truncate">{observation.name || observation.id}</h2>
+          <h2 className="text-sm font-medium truncate">{observation.name || observation.id}</h2>
           <div className="flex items-center gap-1.5 ml-auto">
             {observation.level === "ERROR" && (
               <Badge variant="destructive" className="text-xs">
@@ -222,27 +285,35 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
           </div>
         )}
 
-        {/* Tabs */}
-        <Tabs defaultValue="input" className="flex-1 flex flex-col min-h-0">
-          <TabsList variant="line" className="mx-4 mt-1 gap-0">
-            <TabsTrigger value="input" className="text-xs px-3">
-              Input
-            </TabsTrigger>
-            <TabsTrigger value="output" className="text-xs px-3">
-              Output
-            </TabsTrigger>
-            <TabsTrigger value="metadata" className="text-xs px-3">
+        {/* Section nav */}
+        <SectionNav
+          items={[
+            { id: "input", label: "Input" },
+            { id: "output", label: "Output" },
+            { id: "metadata", label: "Metadata" },
+          ]}
+          activeId={activeSection}
+          onSelect={scrollTo}
+        />
+
+        {/* Scrollable content with all sections */}
+        <div className="flex-1 overflow-auto min-h-0 p-4 space-y-8">
+          {/* Input */}
+          <div ref={inputRef}>
+            <Section title="Input" data={observation.input} showToggle />
+          </div>
+
+          {/* Output */}
+          <div ref={outputRef}>
+            <Section title="Output" data={observation.output} showToggle />
+          </div>
+
+          {/* Metadata */}
+          <div ref={metadataRef}>
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
               Metadata
-            </TabsTrigger>
-          </TabsList>
-          <div className="flex-1 overflow-auto min-h-0 p-4">
-            <TabsContent value="input" className="mt-0">
-              <Section data={observation.input} showToggle />
-            </TabsContent>
-            <TabsContent value="output" className="mt-0">
-              <Section data={observation.output} showToggle />
-            </TabsContent>
-            <TabsContent value="metadata" className="mt-0 space-y-3">
+            </h3>
+            <div className="space-y-3">
               <MetadataRow label="ID" value={observation.id} mono copyable />
               <MetadataRow label="Trace ID" value={observation.traceId} mono copyable />
               <MetadataRow label="Start" value={new Date(observation.startTime).toLocaleString()} />
@@ -260,7 +331,7 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
               {observation.modelParameters && (
                 <div className="space-y-1.5">
                   <span className="text-xs text-muted-foreground">Model Parameters</span>
-                  <div className="rounded-md border border-border bg-muted/30 p-3">
+                  <div className="rounded-md border border-border p-3">
                     <JsonViewer data={observation.modelParameters} />
                   </div>
                 </div>
@@ -268,16 +339,16 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
               {observation.metadata && (
                 <div className="space-y-1.5">
                   <span className="text-xs text-muted-foreground">Metadata</span>
-                  <div className="rounded-md border border-border bg-muted/30 p-3">
+                  <div className="rounded-md border border-border p-3">
                     <JsonViewer data={observation.metadata} />
                   </div>
                 </div>
               )}
-            </TabsContent>
+            </div>
           </div>
-        </Tabs>
+        </div>
       </div>
-    </TooltipProvider>
+    </>
   );
 }
 
@@ -297,10 +368,12 @@ function MetricBadge({
 }
 
 function Section({
+  title,
   children,
   data,
   showToggle,
 }: {
+  title?: string;
   children?: React.ReactNode;
   data?: unknown;
   showToggle?: boolean;
@@ -309,41 +382,32 @@ function Section({
   const hasData = data !== undefined && data !== null;
 
   return (
-    <div className="space-y-2">
-      {/* Toolbar row */}
-      <div className="flex items-center justify-end gap-2">
-        {showToggle && hasData && (
-          <div className="flex rounded-md border border-border text-xs overflow-hidden">
-            <button
-              onClick={() => setViewMode("formatted")}
-              className={cn(
-                "px-2.5 py-1 transition-colors",
-                viewMode === "formatted"
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Formatted
-            </button>
-            <button
-              onClick={() => setViewMode("raw")}
-              className={cn(
-                "px-2.5 py-1 transition-colors border-l border-border",
-                viewMode === "raw"
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              JSON
-            </button>
-          </div>
+    <div className="space-y-3">
+      {/* Header row: title + toolbar */}
+      <div className="flex items-center justify-between gap-2">
+        {title && (
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            {title}
+          </h3>
         )}
-        {hasData && (
-          <CopyButton
-            text={typeof data === "string" ? data : JSON.stringify(data, null, 2)}
-            className="text-muted-foreground hover:text-foreground"
-          />
-        )}
+        <div className="flex items-center gap-2">
+          {showToggle && hasData && (
+            <SegmentedToggle
+              value={viewMode}
+              onChange={setViewMode}
+              options={[
+                { value: "formatted", label: "Formatted" },
+                { value: "raw", label: "JSON" },
+              ]}
+            />
+          )}
+          {hasData && (
+            <CopyButton
+              text={typeof data === "string" ? data : JSON.stringify(data, null, 2)}
+              className="text-muted-foreground hover:text-foreground"
+            />
+          )}
+        </div>
       </div>
 
       {/* Content */}
@@ -351,32 +415,14 @@ function Section({
         viewMode === "formatted" ? (
           <FormattedView data={data} />
         ) : (
-          <div className="rounded-md border border-border bg-muted/30 p-3">
+          <div className="rounded-md border border-border p-3">
             <JsonViewer data={data} />
           </div>
         )
       ) : (
-        <div className="rounded-md border border-border bg-muted/30 p-3">{children}</div>
+        <div className="rounded-md border border-border p-3">{children}</div>
       )}
     </div>
-  );
-}
-
-function CopyButton({ text, className }: { text: string; className?: string }) {
-  const [copied, setCopied] = useState(false);
-
-  return (
-    <button
-      onClick={() => {
-        navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      }}
-      className={cn("transition-colors shrink-0", className)}
-      title="Copy to clipboard"
-    >
-      {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-    </button>
   );
 }
 

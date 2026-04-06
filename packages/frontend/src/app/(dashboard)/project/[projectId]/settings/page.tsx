@@ -14,25 +14,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Copy, Check, UserPlus } from "lucide-react";
+import { UserPlus } from "lucide-react";
+import { CopyButton } from "@/components/ui/copy-button";
 import { RoleBadge, isAdmin as checkIsAdmin } from "@/lib/role-config";
-
-function CopyButton({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = () => {
-    navigator.clipboard.writeText(value);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-  return (
-    <button
-      onClick={handleCopy}
-      className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-    >
-      {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-    </button>
-  );
-}
 
 // --- API Keys Tab ---
 function ApiKeysTab() {
@@ -110,7 +94,10 @@ function ApiKeysTab() {
                       <code className="text-xs font-mono break-all flex-1">
                         {newKeyResult.publicKey}
                       </code>
-                      <CopyButton value={newKeyResult.publicKey} />
+                      <CopyButton
+                        text={newKeyResult.publicKey}
+                        className="text-muted-foreground hover:text-foreground"
+                      />
                     </div>
                   </div>
                   <div>
@@ -119,7 +106,10 @@ function ApiKeysTab() {
                       <code className="text-xs font-mono break-all flex-1">
                         {newKeyResult.secretKey}
                       </code>
-                      <CopyButton value={newKeyResult.secretKey} />
+                      <CopyButton
+                        text={newKeyResult.secretKey}
+                        className="text-muted-foreground hover:text-foreground"
+                      />
                     </div>
                   </div>
                   <div>

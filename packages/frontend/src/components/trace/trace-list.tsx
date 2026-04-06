@@ -8,7 +8,7 @@ import { useRealtimeTraceUpdates } from "@/lib/use-realtime";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { formatDuration, formatTokens, formatCost, formatRelativeTime } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -58,7 +58,7 @@ export function TraceList() {
   const rangeEnd = Math.min(page * PAGE_SIZE, totalCount);
 
   return (
-    <TooltipProvider>
+    <>
       <div className="flex h-full flex-col">
         <div className="flex items-center justify-end px-6 py-3">
           <Input
@@ -249,6 +249,6 @@ export function TraceList() {
           </div>
         )}
       </div>
-    </TooltipProvider>
+    </>
   );
 }

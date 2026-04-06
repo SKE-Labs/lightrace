@@ -5,7 +5,7 @@ import { trpc } from "@/lib/trpc";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { FormattedView } from "./formatted-view";
 import {
   Play,
@@ -304,7 +304,7 @@ export function ToolRerunModal({
   };
 
   return (
-    <TooltipProvider>
+    <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="flex flex-col" showCloseButton>
           <SheetHeader>
@@ -530,6 +530,6 @@ export function ToolRerunModal({
           </SheetFooter>
         </SheetContent>
       </Sheet>
-    </TooltipProvider>
+    </>
   );
 }
