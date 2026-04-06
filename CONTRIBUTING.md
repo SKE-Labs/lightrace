@@ -14,11 +14,11 @@ Thank you for your interest in contributing to LightRace! This guide will help y
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-org/lightrace.git
+git clone https://github.com/SKE-Labs/lightrace.git
 cd lightrace
 
-# Start PostgreSQL + Redis
-docker compose up -d
+# Start PostgreSQL + Redis (infra only — not the full stack)
+docker compose up -d postgres redis
 
 # Install dependencies
 pnpm install
@@ -38,7 +38,7 @@ pnpm dev
 ```
 
 - Frontend: http://localhost:3001 (login with `demo@lightrace.dev` / `password`)
-- Backend: http://localhost:3000 (health check at `/health`)
+- Backend: http://localhost:3002 (health check at `/health`)
 
 ### SDK Testing
 
@@ -97,7 +97,7 @@ lightrace/
 │   │       │   ├── context.ts     # Context creation + auth middleware
 │   │       │   ├── router.ts      # Root router (AppRouter)
 │   │       │   └── routers/       # traces, observations, settings, realtime, tools
-│   │       ├── routes/            # REST routes (ingestion, OTel, tools-ws)
+│   │       ├── routes/            # REST routes (ingestion, OTel, tools-registry)
 │   │       ├── ingestion/         # Event processing + OTel spans
 │   │       ├── realtime/          # Redis Pub/Sub + event emitter
 │   │       └── middleware/        # Internal auth validation
@@ -198,7 +198,7 @@ pnpm vitest run packages/shared/src/schemas/ingestion.test.ts
 ### Package Responsibilities
 
 - **`@lightrace/shared`**: Database access, validation schemas, API key auth, Redis client. No business logic beyond data access.
-- **`@lightrace/backend`**: All business logic. Hono server handles SDK ingestion (REST), OTel (protobuf), tRPC queries/mutations, WebSocket subscriptions, and tool invocation via WebSocket.
+- **`@lightrace/backend`**: All business logic. Hono server handles SDK ingestion (REST), OTel (protobuf), tRPC queries/mutations, WebSocket subscriptions, and tool invocation via HTTP dev server callbacks.
 - **`@lightrace/frontend`**: UI only. Auth.js handles user login. tRPC queries/mutations are proxied to the backend via `/api/trpc`. tRPC subscriptions connect directly to the backend WebSocket server (port 3003).
 
 ### Auth Flow
@@ -228,13 +228,12 @@ Both paths publish affected trace IDs to Redis Pub/Sub (`trace:{projectId}` chan
 
 ### Tool Invocation Flow
 
-1. SDK decorated with `@trace(type="tool")` connects via WebSocket to `ws://backend:3003/api/public/tools/ws`
-2. SDK authenticates with API key (Basic Auth header) and registers available tools
-3. Backend stores tool registrations in the `ToolRegistration` table
-4. User clicks "Re-run" on a TOOL observation in the UI
-5. Backend sends an `invoke` message over the WebSocket with HMAC-SHA256 signature
-6. SDK verifies the signature, executes the tool locally, returns the result
-7. Backend creates a new observation with the result
+1. SDK starts an embedded HTTP dev server and registers tools + `callbackUrl` via `POST /api/public/tools/register`
+2. Backend authenticates via API key (Basic Auth) and stores tool registrations in the `ToolRegistration` table
+3. User clicks "Re-run" on a TOOL observation in the dashboard
+4. Backend sends an HTTP POST to `{callbackUrl}/invoke` with the tool name and input
+5. SDK dev server executes the tool locally and returns the result
+6. Backend creates a new observation with the result
 
 ### Real-time Update Flow
 
