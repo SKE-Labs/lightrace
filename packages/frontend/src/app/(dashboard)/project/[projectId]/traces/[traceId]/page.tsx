@@ -77,6 +77,14 @@ export default function TraceDetailPage({ params }: { params: Promise<{ traceId:
     }
   }, [trace, selected]);
 
+  const selectedObservation = useMemo(
+    () =>
+      selected && !selected.isTrace && trace
+        ? trace.observations.find((o) => o.id === selected.id)
+        : null,
+    [trace, selected],
+  );
+
   if (isLoading) {
     return (
       <div className="flex h-full flex-col">
@@ -119,12 +127,6 @@ export default function TraceDetailPage({ params }: { params: Promise<{ traceId:
       </div>
     );
   }
-
-  const selectedObservation = useMemo(
-    () =>
-      selected && !selected.isTrace ? trace.observations.find((o) => o.id === selected.id) : null,
-    [trace.observations, selected],
-  );
 
   return (
     <div className="flex h-full flex-col">

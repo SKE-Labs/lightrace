@@ -309,7 +309,6 @@ function ChatMessageView({
   renderMode: "markdown" | "plain";
 }) {
   const extracted = extractContent(message.content);
-  const nRole = normalizeRole(message.role);
   const allToolCalls = normalizeToolCalls(message.tool_calls, extracted.toolUses);
   const textContent = extracted.texts.join("\n");
 
