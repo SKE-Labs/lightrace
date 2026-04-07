@@ -4,3 +4,5 @@ anthropic>=0.39
 openai>=1.0
 langchain-core>=0.2
 langchain-openai>=0.2
+claude-agent-sdk>=0.1
+anyio>=4.0

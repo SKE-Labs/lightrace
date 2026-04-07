@@ -29,6 +29,7 @@ npm install
 npm run anthropic           # Anthropic example
 npm run openai              # OpenAI example
 npm run langchain           # LangChain example
+npm run claude-agent-sdk    # Claude Agent SDK example
 ```
 
 ## Python Examples
@@ -41,6 +42,7 @@ pip install -r requirements.txt
 python anthropic_example.py
 python openai_example.py
 python langchain_example.py
+python claude_agent_sdk_example.py
 ```
 
 ## View Traces

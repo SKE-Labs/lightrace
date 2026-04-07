@@ -127,6 +127,88 @@ await runAgent("hello");
 lt.flush();
 ```
 
+### Integrations
+
+Both SDKs provide integrations for popular frameworks. Here are a few examples:
+
+#### LangChain (Python)
+
+```python
+from langchain_core.messages import HumanMessage
+from langchain_openai import ChatOpenAI
+from lightrace import Lightrace
+from lightrace.integrations.langchain import LightraceCallbackHandler
+
+lt = Lightrace(public_key="pk-lt-demo", secret_key="sk-lt-demo")
+
+handler = LightraceCallbackHandler(client=lt)
+model = ChatOpenAI(model="gpt-4o-mini", max_tokens=256)
+
+response = model.invoke(
+    [HumanMessage(content="What is the speed of light?")],
+    config={"callbacks": [handler]},
+)
+
+lt.flush()
+lt.shutdown()
+```
+
+#### Claude Agent SDK (Python)
+
+```python
+import anyio
+from claude_agent_sdk import AssistantMessage, ResultMessage, TextBlock
+from lightrace import Lightrace
+from lightrace.integrations.claude_agent_sdk import traced_query
+
+lt = Lightrace(public_key="pk-lt-demo", secret_key="sk-lt-demo")
+
+async def main():
+    async for message in traced_query(
+        prompt="Read the files in the current directory and summarize them.",
+        options={"max_turns": 5},
+        client=lt,
+        trace_name="file-summarizer",
+    ):
+        if isinstance(message, AssistantMessage):
+            for block in message.content:
+                if isinstance(block, TextBlock):
+                    print(block.text)
+        elif isinstance(message, ResultMessage):
+            print(f"Cost: ${message.total_cost_usd:.4f}")
+
+    lt.flush()
+    lt.shutdown()
+
+anyio.run(main)
+```
+
+#### Claude Agent SDK (TypeScript)
+
+```typescript
+import { Lightrace } from "lightrace";
+import { tracedQuery } from "lightrace/integrations/claude-agent-sdk";
+
+const lt = new Lightrace({ publicKey: "pk-lt-demo", secretKey: "sk-lt-demo" });
+
+for await (const message of tracedQuery({
+  prompt: "Read the files in the current directory and summarize them.",
+  options: { maxTurns: 5 },
+  client: lt,
+  traceName: "file-summarizer",
+})) {
+  if (message.type === "result") {
+    const r = message as Record<string, unknown>;
+    console.log(r.result);
+  }
+}
+
+lt.flush();
+await lt.shutdown();
+```
+
+> See the full list of integrations: [Python SDK](https://github.com/SKE-Labs/lightrace-python#integrations) &middot; [JS SDK](https://github.com/SKE-Labs/lightrace-js#integrations)
+
 ### Trace Types
 
 Both SDKs support the same observation types:
