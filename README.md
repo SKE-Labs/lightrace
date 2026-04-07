@@ -237,6 +237,19 @@ Set `invoke=False` (Python) or `invoke: false` (JS) on a tool to trace it withou
 
 ---
 
+## Why LightRace?
+
+|                              | LightRace |     Langfuse (OSS)     |    LangSmith    |
+| ---------------------------- | :-------: | :--------------------: | :-------------: |
+| Self-host (single command)   |    Yes    |      Manual setup      | No (cloud-only) |
+| Remote tool invocation       |    Yes    |           No           |       No        |
+| Langfuse SDK compatible      |    Yes    |           —            |       No        |
+| Claude Agent SDK integration |    Yes    |           No           |       No        |
+| Real-time trace streaming    |    Yes    |        Polling         |       Yes       |
+| Open source (MIT)            |    Yes    | Yes (EE features paid) |       No        |
+
+---
+
 ## Langfuse Compatibility
 
 LightRace is drop-in compatible with Langfuse v3 and v4 SDKs. Point any Langfuse SDK at your LightRace instance:
