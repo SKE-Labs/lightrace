@@ -17,6 +17,7 @@ import {
   Copy,
   Plus,
   Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -241,6 +242,12 @@ export function ToolRerunModal({
   projectId,
   context,
 }: ToolRerunModalProps) {
+  const healthCheck = trpc.tools.healthCheck.useQuery(
+    { projectId: projectId ?? "", toolName },
+    { enabled: open && !!projectId },
+  );
+  const devServerOffline = healthCheck.data != null && healthCheck.data.status !== "healthy";
+
   const [rows, setRows] = useState(() => inputToRows(originalInput));
   const [rawMode, setRawMode] = useState(false);
   const [rawText, setRawText] = useState(JSON.stringify(originalInput, null, 2) ?? "{}");
@@ -315,6 +322,23 @@ export function ToolRerunModal({
           </SheetHeader>
 
           <div className="flex-1 overflow-auto space-y-4 p-4">
+            {/* Health warning */}
+            {devServerOffline && (
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 flex items-start gap-2">
+                <AlertTriangle className="size-4 text-amber-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                    SDK dev server is not reachable
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
+                    Make sure your SDK is running.
+                    {healthCheck.data?.callbackUrl?.includes("127.0.0.1") &&
+                      " If using Docker, set LIGHTRACE_DEV_SERVER_HOST to your host IP."}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Input editor */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
