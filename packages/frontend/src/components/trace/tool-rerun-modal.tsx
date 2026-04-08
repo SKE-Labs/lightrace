@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { FormattedView } from "./formatted-view";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import {
   Play,
   Loader2,
@@ -31,6 +32,20 @@ interface ParamRow {
   type: ParamType;
 }
 
+/** Try to convert a Python repr string (single quotes, True/False/None) to parsed JSON. */
+function pythonReprToJson(s: string): unknown | null {
+  let fixed = s
+    .replace(/\bTrue\b/g, "true")
+    .replace(/\bFalse\b/g, "false")
+    .replace(/\bNone\b/g, "null")
+    .replace(/'/g, '"');
+  try {
+    return JSON.parse(fixed);
+  } catch {
+    return null;
+  }
+}
+
 function detectType(value: unknown): ParamType {
   if (typeof value === "boolean") return "boolean";
   if (typeof value === "number") return "number";
@@ -40,6 +55,13 @@ function detectType(value: unknown): ParamType {
 
 function inputToRows(input: unknown): ParamRow[] {
   if (input == null) return [];
+  // Try to parse Python repr strings into objects
+  if (typeof input === "string") {
+    const parsed = pythonReprToJson(input);
+    if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+      input = parsed;
+    }
+  }
   if (typeof input === "object" && !Array.isArray(input)) {
     const obj = input as Record<string, unknown>;
     const entries = Object.entries(obj);
@@ -250,7 +272,13 @@ export function ToolRerunModal({
 
   const [rows, setRows] = useState(() => inputToRows(originalInput));
   const [rawMode, setRawMode] = useState(false);
-  const [rawText, setRawText] = useState(JSON.stringify(originalInput, null, 2) ?? "{}");
+  const [rawText, setRawText] = useState(() => {
+    if (typeof originalInput === "string") {
+      const parsed = pythonReprToJson(originalInput);
+      if (parsed !== null) return JSON.stringify(parsed, null, 2);
+    }
+    return JSON.stringify(originalInput, null, 2) ?? "{}";
+  });
   const [contextText, setContextText] = useState(context ? JSON.stringify(context, null, 2) : "{}");
   const hasContext = context != null && Object.keys(context).length > 0;
   const [contextOpen, setContextOpen] = useState(hasContext);
@@ -261,6 +289,25 @@ export function ToolRerunModal({
     durationMs: number;
   }
   const [result, setResult] = useState<InvokeResult | null>(null);
+
+  // Reset state when switching between observations
+  useEffect(() => {
+    setRows(inputToRows(originalInput));
+    setRawMode(false);
+    if (typeof originalInput === "string") {
+      const parsed = pythonReprToJson(originalInput);
+      if (parsed !== null) {
+        setRawText(JSON.stringify(parsed, null, 2));
+      } else {
+        setRawText(JSON.stringify(originalInput, null, 2) ?? "{}");
+      }
+    } else {
+      setRawText(JSON.stringify(originalInput, null, 2) ?? "{}");
+    }
+    setContextText(context ? JSON.stringify(context, null, 2) : "{}");
+    setContextOpen(context != null && Object.keys(context).length > 0);
+    setResult(null);
+  }, [observationId]);
 
   const invoke = trpc.tools.invoke.useMutation({
     onSuccess: (data) =>
@@ -324,19 +371,15 @@ export function ToolRerunModal({
           <div className="flex-1 overflow-auto space-y-4 p-4">
             {/* Health warning */}
             {devServerOffline && (
-              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 flex items-start gap-2">
-                <AlertTriangle className="size-4 text-amber-500 mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                    SDK dev server is not reachable
-                  </p>
-                  <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
-                    Make sure your SDK is running.
-                    {healthCheck.data?.callbackUrl?.includes("127.0.0.1") &&
-                      " If using Docker, set LIGHTRACE_DEV_SERVER_HOST to your host IP."}
-                  </p>
-                </div>
-              </div>
+              <Alert variant="warning">
+                <AlertTriangle className="size-4" />
+                <AlertTitle>SDK dev server is not reachable</AlertTitle>
+                <AlertDescription>
+                  Make sure your SDK is running.
+                  {healthCheck.data?.callbackUrl?.includes("127.0.0.1") &&
+                    " If using Docker, set LIGHTRACE_DEV_SERVER_HOST to your host IP."}
+                </AlertDescription>
+              </Alert>
             )}
 
             {/* Input editor */}
@@ -497,12 +540,14 @@ export function ToolRerunModal({
                 </div>
 
                 {result.error ? (
-                  <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3">
-                    <p className="text-sm text-destructive font-mono">{result.error}</p>
-                  </div>
+                  <Alert variant="destructive">
+                    <XCircle className="size-4" />
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription className="font-mono">{result.error}</AlertDescription>
+                  </Alert>
                 ) : originalOutput !== null && originalOutput !== undefined ? (
-                  /* Side-by-side comparison */
-                  <div className="grid grid-cols-2 gap-3">
+                  /* Stacked comparison */
+                  <div className="space-y-3">
                     <div className="space-y-1.5">
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Re-run Result
@@ -515,9 +560,7 @@ export function ToolRerunModal({
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Original Output
                       </span>
-                      <div className="rounded-md border border-border bg-muted/50 p-3 opacity-70">
-                        <FormattedView data={originalOutput} />
-                      </div>
+                      <FormattedView data={originalOutput} />
                     </div>
                   </div>
                 ) : (

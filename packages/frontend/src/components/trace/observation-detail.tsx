@@ -12,7 +12,8 @@ import { FormattedView } from "./formatted-view";
 import { ToolRerunModal } from "./tool-rerun-modal";
 import { useProjectStore } from "@/lib/project-store";
 import { formatDuration, formatTokens, formatCost } from "@/lib/utils";
-import { Route, Clock, Coins, Hash, RotateCcw } from "lucide-react";
+import { Route, Clock, Coins, Hash, RotateCcw, XCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getObservationIcon } from "@/lib/observation-icons";
 import type { Observation, Trace } from "@prisma/client";
 
@@ -274,15 +275,16 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
 
         {/* Error banner */}
         {observation.level === "ERROR" && observation.statusMessage && (
-          <div className="mx-4 my-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 flex items-start gap-2">
-            <span className="text-xs text-destructive flex-1 whitespace-pre-wrap break-words font-mono">
+          <Alert variant="destructive" className="mx-4 my-2">
+            <XCircle className="size-4" />
+            <AlertDescription className="whitespace-pre-wrap break-words font-mono">
               {observation.statusMessage}
-            </span>
+            </AlertDescription>
             <CopyButton
               text={observation.statusMessage}
-              className="text-destructive/70 hover:text-destructive"
+              className="absolute top-1.5 right-2 text-destructive/70 hover:text-destructive"
             />
-          </div>
+          </Alert>
         )}
 
         {/* Section nav */}
