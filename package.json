@@ -25,6 +25,10 @@
     "turbo": "^2.5.4"
   },
   "lint-staged": {
+    "packages/frontend/src/**/*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
     "*.{ts,tsx,css,json,md}": [
       "prettier --write"
     ]
