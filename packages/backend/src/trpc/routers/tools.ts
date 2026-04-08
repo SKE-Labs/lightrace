@@ -4,6 +4,32 @@ import { TRPCError } from "@trpc/server";
 import { router, projectProcedure } from "../context";
 import { toToolDto } from "../../routes/tools-registry";
 
+/** Ping a single callbackUrl and return its health status. */
+async function checkDevServerHealth(
+  callbackUrl: string | null,
+): Promise<{ status: "healthy" | "unhealthy" | "unreachable" | "unavailable"; message?: string }> {
+  if (!callbackUrl) {
+    return { status: "unavailable", message: "No callback URL registered" };
+  }
+  try {
+    const res = await fetch(`${callbackUrl}/health`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (res.ok) return { status: "healthy" };
+    return { status: "unhealthy", message: `HTTP ${res.status}` };
+  } catch (err) {
+    return {
+      status: "unreachable",
+      message:
+        err instanceof Error
+          ? err.name === "AbortError"
+            ? "Timeout"
+            : err.message
+          : "Unknown error",
+    };
+  }
+}
+
 export const toolsRouter = router({
   /** List all registered tools for the project. */
   list: projectProcedure.query(async ({ ctx }) => {
@@ -14,6 +40,36 @@ export const toolsRouter = router({
 
     return tools.map(toToolDto);
   }),
+
+  /** Check health of a single tool's dev server. */
+  healthCheck: projectProcedure
+    .input(z.object({ projectId: z.string(), toolName: z.string() }))
+    .query(async ({ input, ctx }) => {
+      const registration = await ctx.db.toolRegistration.findFirst({
+        where: { projectId: ctx.projectId, toolName: input.toolName },
+      });
+      const result = await checkDevServerHealth(registration?.callbackUrl ?? null);
+      return { ...result, callbackUrl: registration?.callbackUrl ?? null };
+    }),
+
+  /** Batch health check for all tools in a project. */
+  healthCheckAll: projectProcedure
+    .input(z.object({ projectId: z.string() }))
+    .query(async ({ ctx }) => {
+      const registrations = await ctx.db.toolRegistration.findMany({
+        where: { projectId: ctx.projectId },
+      });
+
+      const results: Record<string, { status: string; message?: string }> = {};
+
+      await Promise.allSettled(
+        registrations.map(async (reg) => {
+          results[reg.toolName] = await checkDevServerHealth(reg.callbackUrl || null);
+        }),
+      );
+
+      return results;
+    }),
 
   /** Invoke a tool on a connected SDK via its dev server. */
   invoke: projectProcedure
@@ -39,14 +95,37 @@ export const toolsRouter = router({
       if (!registration) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: `Tool "${input.toolName}" is not registered`,
+          message: `Tool "${input.toolName}" is not registered. Make sure your SDK is running with @trace(type="tool") decorated functions.`,
         });
       }
 
       if (!registration.callbackUrl) {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
-          message: `Tool "${input.toolName}" has no callback URL — SDK dev server may not be running`,
+          message: `Tool "${input.toolName}" has no callback URL. Start your SDK with dev_server=True (Python) or devServer: true (JS).`,
+        });
+      }
+
+      // Pre-invoke health check — fail fast with a clear message instead of waiting for a 30s timeout
+      try {
+        const healthRes = await fetch(`${registration.callbackUrl}/health`, {
+          signal: AbortSignal.timeout(3000),
+        });
+        if (!healthRes.ok) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: `SDK dev server at ${registration.callbackUrl} returned HTTP ${healthRes.status}. Restart your SDK.`,
+          });
+        }
+      } catch (err) {
+        if (err instanceof TRPCError) throw err;
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Cannot reach SDK dev server at ${registration.callbackUrl}. Is your SDK still running?${
+            registration.callbackUrl.includes("127.0.0.1")
+              ? " If using Docker, set LIGHTRACE_DEV_SERVER_HOST to your host IP or host.docker.internal."
+              : ""
+          }`,
         });
       }
 
@@ -114,8 +193,10 @@ export const toolsRouter = router({
         const message =
           err instanceof Error
             ? err.name === "AbortError"
-              ? `Tool invocation timed out after ${input.timeoutMs}ms`
-              : err.message
+              ? `Tool invocation timed out after ${input.timeoutMs}ms. The SDK dev server may be overloaded or unresponsive.`
+              : err.message.includes("ECONNREFUSED")
+                ? `Cannot connect to SDK dev server at ${registration.callbackUrl}. Is your SDK still running?`
+                : err.message
             : "Tool invocation failed";
 
         throw new TRPCError({
