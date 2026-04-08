@@ -552,9 +552,7 @@ export function ToolRerunModal({
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Re-run Result
                       </span>
-                      <div className="rounded-md border border-border bg-muted/50 p-3">
-                        <FormattedView data={result.output} />
-                      </div>
+                      <FormattedView data={result.output} />
                     </div>
                     <div className="space-y-1.5">
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -564,9 +562,7 @@ export function ToolRerunModal({
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-md border border-border bg-muted/50 p-3">
-                    <FormattedView data={result.output} />
-                  </div>
+                  <FormattedView data={result.output} />
                 )}
               </div>
             )}
