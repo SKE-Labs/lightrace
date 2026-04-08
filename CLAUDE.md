@@ -19,6 +19,8 @@ Real-time flow: ingestion → Redis Pub/Sub → tRPC subscription → WebSocket 
 
 Tool invocation flow: SDK starts embedded HTTP dev server → registers tools + callbackUrl via HTTP POST → dashboard invokes tools by proxying HTTP request through backend to SDK's dev server → SDK executes locally → result returned.
 
+**Docker networking for tool re-run:** When the backend runs in Docker (via `lightrace start` or `docker-compose`), it cannot reach the SDK's dev server at `127.0.0.1`. Set `LIGHTRACE_DEV_SERVER_HOST=host.docker.internal` (or pass `dev_server_host` / `devServerHost` to the client constructor) so the dev server binds to `0.0.0.0` and registers a reachable callback URL. The `lightrace-cli` adds `host.docker.internal:host-gateway` to the backend container automatically.
+
 ## Key Files
 
 | Purpose             | Path                                                                       |

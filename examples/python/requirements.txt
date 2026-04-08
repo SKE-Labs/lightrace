@@ -1,4 +1,6 @@
 lightrace
+# For local development, comment out the line above and uncomment:
+# -e ../../lightrace-python
 python-dotenv>=1.0
 anthropic>=0.39
 openai>=1.0

@@ -8,6 +8,7 @@
     "langchain": "tsx langchain.ts",
     "claude-agent-sdk": "tsx claude-agent-sdk.ts"
   },
+  "//": "For local dev, change lightrace to: file:../../../lightrace-js",
   "dependencies": {
     "dotenv": "^16.4.0",
     "lightrace": "^0.1.9"

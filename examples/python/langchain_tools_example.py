@@ -12,6 +12,13 @@ Prerequisites:
   4. Run: python langchain_tools_example.py
 
 Then open http://localhost:3001 to see the trace and re-run tools from the dashboard.
+
+Docker note:
+  If Lightrace runs in Docker (e.g. via `lightrace start`), the backend
+  container cannot reach your SDK at 127.0.0.1. Set the env var so the
+  dev server binds to 0.0.0.0 and registers a reachable callback URL:
+
+    LIGHTRACE_DEV_SERVER_HOST=host.docker.internal python langchain_tools_example.py
 """
 
 import os
