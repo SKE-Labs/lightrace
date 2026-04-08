@@ -34,7 +34,7 @@ interface ParamRow {
 
 /** Try to convert a Python repr string (single quotes, True/False/None) to parsed JSON. */
 function pythonReprToJson(s: string): unknown | null {
-  let fixed = s
+  const fixed = s
     .replace(/\bTrue\b/g, "true")
     .replace(/\bFalse\b/g, "false")
     .replace(/\bNone\b/g, "null")
@@ -307,6 +307,7 @@ export function ToolRerunModal({
     setContextText(context ? JSON.stringify(context, null, 2) : "{}");
     setContextOpen(context != null && Object.keys(context).length > 0);
     setResult(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [observationId]);
 
   const invoke = trpc.tools.invoke.useMutation({
