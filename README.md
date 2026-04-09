@@ -246,7 +246,7 @@ Set `invoke=False` (Python) or `invoke: false` (JS) on a tool to trace it withou
 | Langfuse SDK compatible      |    Yes    |           —            |       No        |
 | Claude Agent SDK integration |    Yes    |           No           |       No        |
 | Real-time trace streaming    |    Yes    |        Polling         |       Yes       |
-| Open source (MIT)            |    Yes    | Yes (EE features paid) |       No        |
+| Open source (Apache 2.0)     |    Yes    | Yes (EE features paid) |       No        |
 
 ---
 
@@ -361,4 +361,4 @@ Per-package `.env` files are documented in each package's `.env.example`.
 
 ## License
 
-MIT
+Apache 2.0
