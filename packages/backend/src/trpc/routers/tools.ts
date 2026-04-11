@@ -3,32 +3,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, projectProcedure } from "../context";
 import { toToolDto } from "../../routes/tools-registry";
-
-/** Ping a single callbackUrl and return its health status. */
-async function checkDevServerHealth(
-  callbackUrl: string | null,
-): Promise<{ status: "healthy" | "unhealthy" | "unreachable" | "unavailable"; message?: string }> {
-  if (!callbackUrl) {
-    return { status: "unavailable", message: "No callback URL registered" };
-  }
-  try {
-    const res = await fetch(`${callbackUrl}/health`, {
-      signal: AbortSignal.timeout(3000),
-    });
-    if (res.ok) return { status: "healthy" };
-    return { status: "unhealthy", message: `HTTP ${res.status}` };
-  } catch (err) {
-    return {
-      status: "unreachable",
-      message:
-        err instanceof Error
-          ? err.name === "AbortError"
-            ? "Timeout"
-            : err.message
-          : "Unknown error",
-    };
-  }
-}
+import { checkDevServerHealth, invokeDevServer } from "../../lib/dev-server";
 
 export const toolsRouter = router({
   /** List registered tools for the project (paginated, searchable). */
@@ -105,6 +80,7 @@ export const toolsRouter = router({
         projectId: z.string(),
         toolName: z.string(),
         input: z.unknown(),
+        context: z.record(z.unknown()).optional(),
         observationId: z.string().optional(),
         timeoutMs: z.number().min(1000).max(120_000).default(30_000),
       }),
@@ -157,35 +133,14 @@ export const toolsRouter = router({
       }
 
       try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), input.timeoutMs);
-
-        const response = await fetch(`${registration.callbackUrl}/invoke`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(apiKey ? { Authorization: `Bearer ${apiKey.publicKey}` } : {}),
-          },
-          body: JSON.stringify({
-            tool: input.toolName,
-            input: input.input,
-          }),
-          signal: controller.signal,
+        const result = await invokeDevServer({
+          callbackUrl: registration.callbackUrl,
+          toolName: input.toolName,
+          input: input.input,
+          context: input.context,
+          apiKeyPublic: apiKey?.publicKey,
+          timeoutMs: input.timeoutMs,
         });
-
-        clearTimeout(timeout);
-
-        if (!response.ok) {
-          const errorBody = await response.text().catch(() => "Unknown error");
-          throw new Error(`SDK dev server returned ${response.status}: ${errorBody}`);
-        }
-
-        const envelope = (await response.json()) as {
-          code: number;
-          message: string;
-          response: { output: unknown; error?: string; durationMs: number };
-        };
-        const result = envelope.response;
 
         // If an observation ID was provided, create a new observation with the result
         if (input.observationId) {

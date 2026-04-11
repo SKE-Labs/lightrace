@@ -16,6 +16,10 @@ interface TraceTreeProps {
   observations: Observation[];
   selectedId: string | null;
   onSelect: (id: string, isTrace: boolean) => void;
+  /** IDs to highlight with an accent border (used for compare view cross-highlighting). */
+  highlightIds?: Set<string>;
+  /** ID of the fork point observation to mark with a visual indicator. */
+  forkPointId?: string;
 }
 
 interface TreeNode {
@@ -61,6 +65,8 @@ function TreeNodeRow({
   onSelect,
   collapsedIds,
   onToggleCollapse,
+  highlightIds,
+  forkPointId,
 }: {
   node: TreeNode;
   depth: number;
@@ -68,6 +74,8 @@ function TreeNodeRow({
   onSelect: (id: string, isTrace: boolean) => void;
   collapsedIds: Set<string>;
   onToggleCollapse: (id: string) => void;
+  highlightIds?: Set<string>;
+  forkPointId?: string;
 }) {
   const obs = node.observation;
   const isCollapsed = collapsedIds.has(obs.id);
@@ -75,6 +83,8 @@ function TreeNodeRow({
   const duration = obs.endTime
     ? new Date(obs.endTime).getTime() - new Date(obs.startTime).getTime()
     : 0;
+  const isHighlighted = highlightIds?.has(obs.id);
+  const isForkPoint = forkPointId === obs.id;
 
   return (
     <>
@@ -82,6 +92,8 @@ function TreeNodeRow({
         className={cn(
           "flex items-center gap-1.5 pr-2 py-1.5 cursor-pointer transition-colors",
           selectedId === obs.id ? "bg-accent" : "hover:bg-accent/30",
+          isHighlighted && "ring-1 ring-inset ring-primary/40",
+          isForkPoint && "border-l-2 border-primary bg-primary/5",
         )}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
         onClick={() => onSelect(obs.id, false)}
@@ -148,13 +160,22 @@ function TreeNodeRow({
             onSelect={onSelect}
             collapsedIds={collapsedIds}
             onToggleCollapse={onToggleCollapse}
+            highlightIds={highlightIds}
+            forkPointId={forkPointId}
           />
         ))}
     </>
   );
 }
 
-export function TraceTree({ trace, observations, selectedId, onSelect }: TraceTreeProps) {
+export function TraceTree({
+  trace,
+  observations,
+  selectedId,
+  onSelect,
+  highlightIds,
+  forkPointId,
+}: TraceTreeProps) {
   const tree = useMemo(() => buildTree(observations), [observations]);
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
 
@@ -241,6 +262,8 @@ export function TraceTree({ trace, observations, selectedId, onSelect }: TraceTr
             onSelect={onSelect}
             collapsedIds={collapsedIds}
             onToggleCollapse={onToggleCollapse}
+            highlightIds={highlightIds}
+            forkPointId={forkPointId}
           />
         ))}
 

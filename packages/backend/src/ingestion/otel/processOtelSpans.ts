@@ -1,5 +1,6 @@
 import { db } from "@lightrace/shared/db";
 import { ObservationType, ObservationLevel, Prisma } from "@prisma/client";
+import { updateTraceAggregates } from "../updateTraceAggregates";
 
 type TxClient = Prisma.TransactionClient;
 import { LangfuseOtelSpanAttributes, LightraceOtelSpanAttributes } from "./attributes";
@@ -344,30 +345,6 @@ async function ensureTraceExists(tx: TxClient, traceId: string, projectId: strin
   });
 }
 
-async function updateTraceAggregates(tx: TxClient, traceId: string) {
-  await tx.$queryRaw`
-    UPDATE traces SET
-      total_tokens = COALESCE((SELECT SUM(total_tokens) FROM observations WHERE trace_id = ${traceId}), 0),
-      total_cost = (SELECT SUM(total_cost) FROM observations WHERE trace_id = ${traceId}),
-      latency_ms = (
-        SELECT (EXTRACT(EPOCH FROM (MAX(COALESCE(end_time, start_time)) - MIN(start_time))) * 1000)::int
-        FROM observations WHERE trace_id = ${traceId}
-      ),
-      observation_count = (SELECT COUNT(*)::int FROM observations WHERE trace_id = ${traceId}),
-      primary_model = (SELECT model FROM observations WHERE trace_id = ${traceId} AND type = 'GENERATION' AND model IS NOT NULL LIMIT 1),
-      level = COALESCE(
-        (SELECT CASE
-          WHEN EXISTS (SELECT 1 FROM observations WHERE trace_id = ${traceId} AND level = 'ERROR') THEN 'ERROR'::"ObservationLevel"
-          WHEN EXISTS (SELECT 1 FROM observations WHERE trace_id = ${traceId} AND level = 'WARNING') THEN 'WARNING'::"ObservationLevel"
-          ELSE 'DEFAULT'::"ObservationLevel"
-        END),
-        'DEFAULT'::"ObservationLevel"
-      ),
-      updated_at = NOW()
-    WHERE id = ${traceId}
-  `;
-}
-
 // ── Trace update builder ─────────────────────────────────────────────
 
 function buildTraceUpdate(
@@ -574,6 +551,7 @@ async function processSpan(
       (attrs[LightraceOtelSpanAttributes.VERSION] as string) ??
       (attrs[LangfuseOtelSpanAttributes.VERSION] as string) ??
       null,
+    checkpointId: (attrs[LightraceOtelSpanAttributes.GRAPH_CHECKPOINT_ID] as string) ?? null,
   };
 
   await tx.observation.upsert({
@@ -581,6 +559,28 @@ async function processSpan(
     create: { id: spanId, ...observationData },
     update: observationData,
   });
+
+  const checkpointState = safeJsonParse(
+    attrs[LightraceOtelSpanAttributes.CHECKPOINT_STATE] as string,
+  );
+  if (checkpointState) {
+    const threadId = (attrs[LightraceOtelSpanAttributes.GRAPH_THREAD_ID] as string) ?? traceId;
+    const stepIndex = await tx.checkpoint.count({ where: { traceId } });
+    await tx.checkpoint.upsert({
+      where: { traceId_observationId: { traceId, observationId: spanId } },
+      create: {
+        projectId,
+        traceId,
+        observationId: spanId,
+        threadId,
+        stepIndex,
+        state: checkpointState as object,
+      },
+      update: {
+        state: checkpointState as object,
+      },
+    });
+  }
 
   // Update denormalized aggregates on the parent trace
   await updateTraceAggregates(tx, traceId);
