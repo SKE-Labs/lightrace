@@ -24,8 +24,9 @@ vi.mock("@lightrace/shared/redis", () => ({
 }));
 
 // Mock publishTraceUpdate to a no-op
+// vi.mock path is resolved by Vitest from the importing module, not this setup file
 vi.mock("../../realtime/pubsub", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../../realtime/pubsub")>();
+  const original = await importOriginal<typeof import("../realtime/pubsub")>();
   return {
     ...original,
     publishTraceUpdate: vi.fn(),

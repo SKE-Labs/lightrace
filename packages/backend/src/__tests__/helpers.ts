@@ -203,8 +203,8 @@ export async function createTestCheckpoint(opts: {
       observationId: opts.observationId,
       threadId: opts.threadId,
       stepIndex: opts.stepIndex,
-      state: opts.state,
-      metadata: opts.metadata,
+      state: opts.state as object,
+      metadata: opts.metadata as object | undefined,
     },
   });
 }
