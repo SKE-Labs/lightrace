@@ -10,6 +10,8 @@
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.cjs",
     "build": "tsup",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -27,11 +29,14 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
     "@types/node": "^20",
     "@types/ws": "^8",
+    "eslint": "^9.39.4",
     "tsup": "^8.5.0",
     "tsx": "^4.21.0",
     "typescript": "^5",
+    "typescript-eslint": "^8",
     "vitest": "^4.0.18"
   }
 }

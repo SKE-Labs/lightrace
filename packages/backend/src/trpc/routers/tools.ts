@@ -31,15 +31,42 @@ async function checkDevServerHealth(
 }
 
 export const toolsRouter = router({
-  /** List all registered tools for the project. */
-  list: projectProcedure.query(async ({ ctx }) => {
-    const tools = await ctx.db.toolRegistration.findMany({
-      where: { projectId: ctx.projectId },
-      orderBy: { toolName: "asc" },
-    });
+  /** List registered tools for the project (paginated, searchable). */
+  list: projectProcedure
+    .input(
+      z.object({
+        projectId: z.string(),
+        limit: z.number().min(1).max(100).default(12),
+        page: z.number().min(1).default(1),
+        search: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { limit, page, search } = input;
+      const skip = (page - 1) * limit;
 
-    return tools.map(toToolDto);
-  }),
+      const where = {
+        projectId: ctx.projectId,
+        ...(search ? { toolName: { contains: search, mode: "insensitive" as const } } : {}),
+      };
+
+      const [tools, totalCount] = await Promise.all([
+        ctx.db.toolRegistration.findMany({
+          where,
+          orderBy: { toolName: "asc" },
+          take: limit,
+          skip,
+        }),
+        ctx.db.toolRegistration.count({ where }),
+      ]);
+
+      return {
+        items: tools.map(toToolDto),
+        totalCount,
+        page,
+        totalPages: Math.ceil(totalCount / limit),
+      };
+    }),
 
   /** Check health of a single tool's dev server. */
   healthCheck: projectProcedure
