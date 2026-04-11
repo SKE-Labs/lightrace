@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { formatDuration, formatTokens, formatCost, formatRelativeTime } from "@/lib/utils";
 import { PaginationBar } from "@/components/pagination-bar";
+import { GitBranch } from "lucide-react";
 
 const PAGE_SIZE = 20;
 
@@ -120,6 +121,14 @@ export function TraceList() {
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
+                      {trace.isFork && (
+                        <Tooltip>
+                          <TooltipTrigger className="inline-flex shrink-0">
+                            <GitBranch className="size-3.5 text-primary" />
+                          </TooltipTrigger>
+                          <TooltipContent>Fork</TooltipContent>
+                        </Tooltip>
+                      )}
                       {trace.hasError && (
                         <span
                           className="size-2 rounded-full bg-error shrink-0"
@@ -138,6 +147,12 @@ export function TraceList() {
                       {trace.primaryModel && (
                         <Badge variant="secondary" className="text-xs font-mono shrink-0">
                           {trace.primaryModel}
+                        </Badge>
+                      )}
+                      {trace.forkCount > 0 && (
+                        <Badge variant="outline" className="text-xs shrink-0 gap-1">
+                          <GitBranch className="size-3" />
+                          {trace.forkCount}
                         </Badge>
                       )}
                     </div>

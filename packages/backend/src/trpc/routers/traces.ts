@@ -37,10 +37,27 @@ export const tracesRouter = router({
             primaryModel: true,
             observationCount: true,
             level: true,
+            isFork: true,
           },
         }),
         ctx.db.trace.count({ where }),
       ]);
+
+      // Batch-load fork status for the page of traces
+      const traceIds = traces.map((t) => t.id);
+      const forkRecords =
+        traceIds.length > 0
+          ? await ctx.db.traceFork.findMany({
+              where: { sourceTraceId: { in: traceIds } },
+              select: { sourceTraceId: true },
+            })
+          : [];
+
+      // Build fork count map: sourceTraceId → number of forks
+      const forkCountMap = new Map<string, number>();
+      for (const r of forkRecords) {
+        forkCountMap.set(r.sourceTraceId, (forkCountMap.get(r.sourceTraceId) ?? 0) + 1);
+      }
 
       const items = traces.map((trace) => ({
         id: trace.id,
@@ -54,6 +71,8 @@ export const tracesRouter = router({
         hasError: trace.level === "ERROR",
         hasWarning: trace.level === "WARNING",
         primaryModel: trace.primaryModel,
+        isFork: trace.isFork,
+        forkCount: forkCountMap.get(trace.id) ?? 0,
       }));
 
       return {
@@ -80,7 +99,16 @@ export const tracesRouter = router({
         return null;
       }
 
-      return trace;
+      // Fetch fork metadata in parallel
+      const [forkedFrom, forks] = await Promise.all([
+        ctx.db.traceFork.findUnique({ where: { forkedTraceId: input.id } }),
+        ctx.db.traceFork.findMany({
+          where: { sourceTraceId: input.id },
+          orderBy: { createdAt: "desc" },
+        }),
+      ]);
+
+      return { ...trace, forkedFrom, forks };
     }),
 
   delete: projectAdminProcedure

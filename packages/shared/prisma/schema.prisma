@@ -34,6 +34,8 @@ model Project {
   conversationMessages  ConversationMessage[]
   memberships           ProjectMembership[]
   invitations           MembershipInvitation[]
+  traceForks            TraceFork[]
+  checkpoints           Checkpoint[]
 
   @@map("projects")
 }
@@ -78,6 +80,11 @@ model Trace {
   level            ObservationLevel @default(DEFAULT)
 
   observations Observation[]
+  checkpoints  Checkpoint[]
+
+  isFork      Boolean     @default(false) @map("is_fork")
+  sourceForks TraceFork[] @relation("SourceTrace")
+  forkedFrom  TraceFork?  @relation("ForkedTrace")
 
   @@index([projectId, timestamp(sort: Desc)])
   @@index([projectId, level, timestamp(sort: Desc)])
@@ -128,6 +135,8 @@ model Observation {
   inputCost           Float?           @map("input_cost")
   outputCost          Float?           @map("output_cost")
   totalCost           Float?           @map("total_cost")
+  checkpointId        String?          @map("checkpoint_id")
+  toolCallId          String?          @map("tool_call_id")
   createdAt           DateTime         @default(now()) @map("created_at")
   updatedAt           DateTime         @default(now()) @updatedAt @map("updated_at")
 
@@ -140,15 +149,16 @@ model Observation {
 }
 
 model ToolRegistration {
-  id          String   @id @default(cuid())
-  projectId   String   @map("project_id")
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  toolName    String   @map("tool_name")
-  description String?
-  inputSchema Json?    @map("input_schema")
-  callbackUrl String   @default("") @map("callback_url")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  id           String   @id @default(cuid())
+  projectId    String   @map("project_id")
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  toolName     String   @map("tool_name")
+  description  String?
+  inputSchema  Json?    @map("input_schema")
+  callbackUrl  String   @default("") @map("callback_url")
+  capabilities Json?    @map("capabilities")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@unique([projectId, toolName])
   @@index([projectId])
@@ -212,4 +222,41 @@ model MembershipInvitation {
 
   @@index([email, projectId])
   @@map("membership_invitations")
+}
+
+model TraceFork {
+  id               String   @id @default(cuid())
+  sourceTraceId    String   @map("source_trace_id")
+  sourceTrace      Trace    @relation("SourceTrace", fields: [sourceTraceId], references: [id], onDelete: Cascade)
+  forkedTraceId    String   @unique @map("forked_trace_id")
+  forkedTrace      Trace    @relation("ForkedTrace", fields: [forkedTraceId], references: [id], onDelete: Cascade)
+  forkPointId      String   @map("fork_point_id")
+  modifiedInput    Json?    @map("modified_input")
+  observationIdMap Json?    @map("observation_id_map")
+  projectId        String   @map("project_id")
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@index([sourceTraceId])
+  @@index([projectId, createdAt(sort: Desc)])
+  @@map("trace_forks")
+}
+
+model Checkpoint {
+  id            String   @id @default(cuid())
+  projectId     String   @map("project_id")
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  traceId       String   @map("trace_id")
+  trace         Trace    @relation(fields: [traceId], references: [id], onDelete: Cascade)
+  observationId String   @map("observation_id")
+  threadId      String   @map("thread_id")
+  stepIndex     Int      @map("step_index")
+  state         Json
+  metadata      Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@unique([traceId, observationId])
+  @@index([traceId, stepIndex])
+  @@index([threadId, stepIndex])
+  @@map("checkpoints")
 }

@@ -10,16 +10,25 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { JsonViewer } from "./json-viewer";
 import { FormattedView } from "./formatted-view";
 import { ToolRerunModal } from "./tool-rerun-modal";
+import { ForkModal } from "./fork-modal";
 import { useProjectStore } from "@/lib/project-store";
 import { formatDuration, formatTokens, formatCost } from "@/lib/utils";
-import { Route, Clock, Coins, Hash, RotateCcw, XCircle } from "lucide-react";
+import { Route, Clock, Coins, Hash, RotateCcw, GitBranch, XCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getObservationIcon } from "@/lib/observation-icons";
-import type { Observation, Trace } from "@prisma/client";
+import Link from "next/link";
+import type { Observation, Trace, TraceFork } from "@prisma/client";
+
+function extractContext(metadata: unknown): Record<string, unknown> | undefined {
+  const ctx = (metadata as Record<string, unknown> | null)?.__lightrace_context;
+  return ctx && typeof ctx === "object" && !Array.isArray(ctx)
+    ? (ctx as Record<string, unknown>)
+    : undefined;
+}
 
 interface TraceDetailProps {
   type: "trace";
-  trace: Trace;
+  trace: Trace & { forkedFrom?: TraceFork | null; forks?: TraceFork[] };
 }
 
 interface ObservationDetailProps {
@@ -67,7 +76,12 @@ function SectionNav({
   );
 }
 
-function TraceDetailPanel({ trace }: { trace: Trace }) {
+function TraceDetailPanel({
+  trace,
+}: {
+  trace: Trace & { forkedFrom?: TraceFork | null; forks?: TraceFork[] };
+}) {
+  const projectId = useProjectStore((s) => s.projectId);
   const [activeSection, setActiveSection] = useState("input");
   const inputRef = useRef<HTMLDivElement>(null);
   const outputRef = useRef<HTMLDivElement>(null);
@@ -146,6 +160,76 @@ function TraceDetailPanel({ trace }: { trace: Trace }) {
               )}
             </div>
           </div>
+
+          {/* Fork info */}
+          {trace.forkedFrom && (
+            <div>
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                Fork Source
+              </h3>
+              <div className="rounded-md border border-border p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <GitBranch className="size-3.5 text-primary" />
+                  <span className="text-xs text-muted-foreground">Forked from</span>
+                  <Link
+                    href={`/project/${projectId}/traces/${trace.forkedFrom.sourceTraceId}`}
+                    className="text-xs text-primary hover:underline font-mono"
+                  >
+                    {trace.forkedFrom.sourceTraceId.slice(0, 8)}...
+                  </Link>
+                </div>
+                <Link
+                  href={`/project/${projectId}/traces/compare/${trace.forkedFrom.id}`}
+                  className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+                >
+                  View comparison
+                </Link>
+                {trace.forkedFrom.modifiedInput && (
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground">Modified input</span>
+                    <div className="rounded border border-border p-2">
+                      <JsonViewer data={trace.forkedFrom.modifiedInput} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {trace.forks && trace.forks.length > 0 && (
+            <div>
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                Forks ({trace.forks.length})
+              </h3>
+              <div className="space-y-2">
+                {trace.forks.map((fork) => (
+                  <div
+                    key={fork.id}
+                    className="rounded-md border border-border p-3 flex items-center gap-3"
+                  >
+                    <GitBranch className="size-3.5 text-primary shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <Link
+                        href={`/project/${projectId}/traces/${fork.forkedTraceId}`}
+                        className="text-xs text-primary hover:underline font-mono"
+                      >
+                        {fork.forkedTraceId.slice(0, 8)}...
+                      </Link>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(fork.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                    <Link
+                      href={`/project/${projectId}/traces/compare/${fork.id}`}
+                      className="text-xs text-primary hover:underline shrink-0"
+                    >
+                      Compare
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>
@@ -155,6 +239,7 @@ function TraceDetailPanel({ trace }: { trace: Trace }) {
 function ObservationDetailPanel({ observation }: { observation: Observation }) {
   const projectId = useProjectStore((s) => s.projectId);
   const [rerunOpen, setRerunOpen] = useState(false);
+  const [forkOpen, setForkOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("input");
   const inputRef = useRef<HTMLDivElement>(null);
   const outputRef = useRef<HTMLDivElement>(null);
@@ -192,15 +277,26 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
               </Badge>
             )}
             {isTool && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-xs h-7"
-                onClick={() => setRerunOpen(true)}
-              >
-                <RotateCcw className="size-3" />
-                Re-run
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs h-7"
+                  onClick={() => setRerunOpen(true)}
+                >
+                  <RotateCcw className="size-3" />
+                  Re-run
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs h-7"
+                  onClick={() => setForkOpen(true)}
+                >
+                  <GitBranch className="size-3" />
+                  Fork
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -215,11 +311,21 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
             originalOutput={observation.output}
             observationId={observation.id}
             projectId={projectId ?? undefined}
-            context={
-              (observation.metadata as Record<string, unknown> | null)?.__lightrace_context as
-                | Record<string, unknown>
-                | undefined
-            }
+            context={extractContext(observation.metadata)}
+          />
+        )}
+
+        {/* Fork modal */}
+        {isTool && projectId && (
+          <ForkModal
+            open={forkOpen}
+            onOpenChange={setForkOpen}
+            toolName={observation.name ?? observation.id}
+            originalInput={observation.input}
+            observationId={observation.id}
+            traceId={observation.traceId}
+            projectId={projectId}
+            context={extractContext(observation.metadata)}
           />
         )}
 

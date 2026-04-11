@@ -42,6 +42,12 @@ const registerSchema = z.object({
       inputSchema: z.unknown().optional(),
     }),
   ),
+  capabilities: z
+    .object({
+      framework: z.string().optional(),
+      replay: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 /**
@@ -60,7 +66,7 @@ toolsRegistryRoutes.post("/register", async (c) => {
     return apiResponse(c, 400, "Invalid request body", { details: parsed.error.flatten() });
   }
 
-  const { callbackUrl, tools } = parsed.data;
+  const { callbackUrl, tools, capabilities } = parsed.data;
   const { projectId } = authResult;
   const toolNames = tools.map((t) => t.name);
 
@@ -79,11 +85,13 @@ toolsRegistryRoutes.post("/register", async (c) => {
           description: tool.description ?? null,
           inputSchema: (tool.inputSchema as object) ?? undefined,
           callbackUrl,
+          capabilities: (capabilities as object) ?? undefined,
         },
         update: {
           description: tool.description ?? null,
           inputSchema: (tool.inputSchema as object) ?? undefined,
           callbackUrl,
+          capabilities: (capabilities as object) ?? undefined,
         },
       }),
     ),

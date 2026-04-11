@@ -6,6 +6,7 @@ import { realtimeRouter } from "./routers/realtime";
 import { toolsRouter } from "./routers/tools";
 import { projectsRouter } from "./routers/projects";
 import { membersRouter } from "./routers/members";
+import { forksRouter } from "./routers/forks";
 
 export const appRouter = router({
   traces: tracesRouter,
@@ -15,6 +16,7 @@ export const appRouter = router({
   tools: toolsRouter,
   projects: projectsRouter,
   members: membersRouter,
+  forks: forksRouter,
 });
 
 export type AppRouter = typeof appRouter;

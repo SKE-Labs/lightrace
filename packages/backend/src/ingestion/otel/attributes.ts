@@ -68,4 +68,8 @@ export enum LightraceOtelSpanAttributes {
   RELEASE = "lightrace.release",
   VERSION = "lightrace.version",
   AS_ROOT = "lightrace.internal.as_root",
+
+  GRAPH_THREAD_ID = "lightrace.graph.thread_id",
+  GRAPH_CHECKPOINT_ID = "lightrace.graph.checkpoint_id",
+  CHECKPOINT_STATE = "lightrace.checkpoint.state",
 }
