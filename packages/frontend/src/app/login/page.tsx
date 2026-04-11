@@ -84,7 +84,10 @@ function LoginForm() {
         </form>
 
         <p className="text-center text-xs text-muted-foreground">
-          Demo: demo@lightrace.dev / password
+          Don&apos;t have an account?{" "}
+          <a href="/register" className="text-primary hover:underline">
+            Sign up
+          </a>
         </p>
       </div>
     </div>

@@ -2,7 +2,7 @@ import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hash } from "bcryptjs";
-import { createHash } from "crypto";
+import { createHash, randomBytes } from "crypto";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const db = new PrismaClient({ adapter });
@@ -10,6 +10,7 @@ const db = new PrismaClient({ adapter });
 const SEED_EMAIL = process.env.SEED_USER_EMAIL || "demo@lightrace.dev";
 const SEED_PASSWORD_HASH = process.env.SEED_USER_PASSWORD_HASH;
 const SEED_NAME = process.env.SEED_USER_NAME || "Demo User";
+const SEED_PROJECT_ID = process.env.SEED_PROJECT_ID || `proj-${randomBytes(4).toString("hex")}`;
 const SEED_PROJECT_NAME = process.env.SEED_PROJECT_NAME || "Demo Project";
 const SEED_PUBLIC_KEY = process.env.SEED_PUBLIC_KEY || "pk-lt-demo";
 const SEED_SECRET_KEY = process.env.SEED_SECRET_KEY || "sk-lt-demo";
@@ -30,10 +31,10 @@ async function main() {
 
   // Create project
   const project = await db.project.upsert({
-    where: { id: "demo-project" },
+    where: { id: SEED_PROJECT_ID },
     update: { name: SEED_PROJECT_NAME },
     create: {
-      id: "demo-project",
+      id: SEED_PROJECT_ID,
       name: SEED_PROJECT_NAME,
     },
   });
