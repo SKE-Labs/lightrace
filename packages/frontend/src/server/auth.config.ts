@@ -19,7 +19,7 @@ export const authConfig = {
     },
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth;
-      const isLoginPage = nextUrl.pathname === "/login";
+      const isAuthPage = nextUrl.pathname === "/login" || nextUrl.pathname === "/register";
       const isPublicApi = nextUrl.pathname.startsWith("/api/public/");
       const isAuthApi = nextUrl.pathname.startsWith("/api/auth/");
       const isStaticAsset = /\.(svg|png|ico|jpg|jpeg|webp|gif|css|js|woff2?)$/.test(
@@ -30,7 +30,7 @@ export const authConfig = {
       if (isPublicApi || isAuthApi || isStaticAsset) return true;
 
       // Redirect to login if not authenticated
-      if (!isLoggedIn && !isLoginPage) return false;
+      if (!isLoggedIn && !isAuthPage) return false;
 
       return true;
     },
