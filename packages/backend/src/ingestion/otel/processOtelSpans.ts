@@ -110,7 +110,7 @@ function extractAttributes(kvList?: OtelKeyValue[]): Record<string, unknown> {
 
 /** Try to convert a Python repr string to a JSON-parseable value. */
 function pythonReprToJson(s: string): unknown | null {
-  let fixed = s
+  const fixed = s
     .replace(/\bTrue\b/g, "true")
     .replace(/\bFalse\b/g, "false")
     .replace(/\bNone\b/g, "null")

@@ -26,7 +26,11 @@
   },
   "lint-staged": {
     "packages/frontend/src/**/*.{ts,tsx}": [
-      "eslint --fix",
+      "packages/frontend/node_modules/.bin/eslint --config packages/frontend/eslint.config.mjs --fix",
+      "prettier --write"
+    ],
+    "packages/backend/src/**/*.ts": [
+      "packages/backend/node_modules/.bin/eslint --config packages/backend/eslint.config.mjs --fix",
       "prettier --write"
     ],
     "*.{ts,tsx,css,json,md}": [
