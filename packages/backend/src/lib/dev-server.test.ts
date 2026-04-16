@@ -141,13 +141,14 @@ describe("replayOnDevServer", () => {
       json: () => Promise.resolve(envelope),
     });
 
-    const result = await replayOnDevServer({
+    await replayOnDevServer({
       callbackUrl: "http://localhost:9999",
-      messages: [{ role: "user", content: "hi" }],
-      model: "gpt-4",
+      threadId: "thread-1",
+      toolName: "search",
+      modifiedContent: "new result",
+      forkedTraceId: "fork-trace-1",
       timeoutMs: 5000,
     });
-    expect(result).toEqual({ output: "replayed", durationMs: 200 });
   });
 
   it("throws on non-OK response", async () => {
@@ -160,7 +161,10 @@ describe("replayOnDevServer", () => {
     await expect(
       replayOnDevServer({
         callbackUrl: "http://localhost:9999",
-        messages: [],
+        threadId: "thread-1",
+        toolName: "search",
+        modifiedContent: "content",
+        forkedTraceId: "fork-trace-1",
         timeoutMs: 5000,
       }),
     ).rejects.toThrow("SDK dev server returned 500: Error");
@@ -175,11 +179,12 @@ describe("replayOnDevServer", () => {
 
     await replayOnDevServer({
       callbackUrl: "http://localhost:9999",
-      messages: [{ role: "user", content: "hello" }],
-      tools: [{ name: "search" }],
-      model: "gpt-4",
-      system: "You are helpful",
-      context: { thread_id: "t1" },
+      threadId: "thread-1",
+      toolCallId: "call_123",
+      toolName: "search",
+      modifiedContent: "new result",
+      forkedTraceId: "fork-trace-1",
+      context: { user_id: "u1" },
       apiKeyPublic: "pk-lt-xyz",
       timeoutMs: 5000,
     });
@@ -187,11 +192,11 @@ describe("replayOnDevServer", () => {
     const fetchCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]!;
     expect(fetchCall[0]).toBe("http://localhost:9999/replay");
     const body = JSON.parse(fetchCall[1].body as string);
-    expect(body.messages).toHaveLength(1);
-    expect(body.tools).toEqual([{ name: "search" }]);
-    expect(body.model).toBe("gpt-4");
-    expect(body.system).toBe("You are helpful");
-    expect(body.context).toEqual({ thread_id: "t1" });
+    expect(body.thread_id).toBe("thread-1");
+    expect(body.tool_call_id).toBe("call_123");
+    expect(body.tool_name).toBe("search");
+    expect(body.modified_content).toBe("new result");
+    expect(body.context).toEqual({ user_id: "u1" });
     const headers = fetchCall[1].headers as Record<string, string>;
     expect(headers.Authorization).toBe("Bearer pk-lt-xyz");
   });
@@ -205,14 +210,19 @@ describe("replayOnDevServer", () => {
 
     await replayOnDevServer({
       callbackUrl: "http://localhost:9999",
-      messages: [],
+      threadId: "thread-1",
+      toolName: "search",
+      modifiedContent: "content",
+      forkedTraceId: "fork-trace-1",
       timeoutMs: 5000,
     });
 
     const fetchCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]!;
     const body = JSON.parse(fetchCall[1].body as string);
-    expect(body).toEqual({ messages: [] });
-    expect(body.tools).toBeUndefined();
-    expect(body.model).toBeUndefined();
+    expect(body.thread_id).toBe("thread-1");
+    expect(body.tool_name).toBe("search");
+    expect(body.modified_content).toBe("content");
+    expect(body.tool_call_id).toBeUndefined();
+    expect(body.context).toBeUndefined();
   });
 });

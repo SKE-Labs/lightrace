@@ -185,30 +185,6 @@ export async function createTestToolRegistration(opts: {
   });
 }
 
-// ── Checkpoints ────────────────────────────────────────────────────────
-
-export async function createTestCheckpoint(opts: {
-  projectId: string;
-  traceId: string;
-  observationId: string;
-  threadId: string;
-  stepIndex: number;
-  state: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
-}) {
-  return db.checkpoint.create({
-    data: {
-      projectId: opts.projectId,
-      traceId: opts.traceId,
-      observationId: opts.observationId,
-      threadId: opts.threadId,
-      stepIndex: opts.stepIndex,
-      state: opts.state as object,
-      metadata: opts.metadata as object | undefined,
-    },
-  });
-}
-
 // ── Invitations ────────────────────────────────────────────────────────
 
 export async function createTestInvitation(opts: {

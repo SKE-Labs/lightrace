@@ -274,144 +274,26 @@ describe("processOtelResourceSpans", () => {
     });
   });
 
-  // ── Checkpoint ingestion via OTel ──────────────────────────────────
+  // ── Tool call ID via OTel ───────────────────────────────────────────
 
-  describe("checkpoint ingestion via OTel", () => {
-    it("creates a Checkpoint record when lightrace.checkpoint.state is present", async () => {
-      const project = await createTestProject();
-      const state = { messages: [{ role: "user", content: "hi" }], model: "gpt-4" };
-      await processOtelResourceSpans(
-        [
-          buildResourceSpan({
-            traceId: "aabb",
-            spanId: "cc11",
-            attributes: [
-              attr("lightrace.checkpoint.state", JSON.stringify(state)),
-              attr("lightrace.graph.thread_id", "thread-1"),
-            ],
-          }),
-        ],
-        project.id,
-      );
+  it("sets toolCallId on observation from lightrace.tool.call_id", async () => {
+    const project = await createTestProject();
+    await processOtelResourceSpans(
+      [
+        buildResourceSpan({
+          traceId: "aabb",
+          spanId: "cc11",
+          attributes: [
+            attr("lightrace.observation.type", "TOOL"),
+            attr("lightrace.tool.call_id", "call_abc123"),
+          ],
+        }),
+      ],
+      project.id,
+    );
 
-      const checkpoints = await db.checkpoint.findMany({ where: { traceId: "aabb" } });
-      expect(checkpoints).toHaveLength(1);
-      expect(checkpoints[0]!.threadId).toBe("thread-1");
-      expect(checkpoints[0]!.stepIndex).toBe(0);
-      expect(checkpoints[0]!.state).toEqual(state);
-      expect(checkpoints[0]!.observationId).toBe("cc11");
-    });
-
-    it("falls back to traceId when thread_id is not present", async () => {
-      const project = await createTestProject();
-      await processOtelResourceSpans(
-        [
-          buildResourceSpan({
-            traceId: "aabb",
-            spanId: "cc11",
-            attributes: [attr("lightrace.checkpoint.state", '{"messages":[]}')],
-          }),
-        ],
-        project.id,
-      );
-
-      const cp = await db.checkpoint.findFirst({ where: { traceId: "aabb" } });
-      expect(cp!.threadId).toBe("aabb");
-    });
-
-    it("auto-increments stepIndex for multiple checkpoints in same trace", async () => {
-      const project = await createTestProject();
-      // Process two spans with checkpoint state in same resource
-      await processOtelResourceSpans(
-        [
-          {
-            resource: { attributes: [] },
-            scopeSpans: [
-              {
-                spans: [
-                  {
-                    traceId: "aabb",
-                    spanId: "s1",
-                    name: "step-1",
-                    startTimeUnixNano: "1700000000000000000",
-                    endTimeUnixNano: "1700000001000000000",
-                    attributes: [
-                      { key: "lightrace.checkpoint.state", value: { stringValue: '{"step":1}' } },
-                    ],
-                  },
-                  {
-                    traceId: "aabb",
-                    spanId: "s2",
-                    name: "step-2",
-                    startTimeUnixNano: "1700000001000000000",
-                    endTimeUnixNano: "1700000002000000000",
-                    attributes: [
-                      { key: "lightrace.checkpoint.state", value: { stringValue: '{"step":2}' } },
-                    ],
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-        project.id,
-      );
-
-      const checkpoints = await db.checkpoint.findMany({
-        where: { traceId: "aabb" },
-        orderBy: { stepIndex: "asc" },
-      });
-      expect(checkpoints).toHaveLength(2);
-      expect(checkpoints[0]!.stepIndex).toBe(0);
-      expect(checkpoints[1]!.stepIndex).toBe(1);
-    });
-
-    it("upserts checkpoint on duplicate traceId+observationId", async () => {
-      const project = await createTestProject();
-      // First ingestion
-      await processOtelResourceSpans(
-        [
-          buildResourceSpan({
-            traceId: "aabb",
-            spanId: "cc11",
-            attributes: [attr("lightrace.checkpoint.state", '{"v":1}')],
-          }),
-        ],
-        project.id,
-      );
-      // Second ingestion with same span
-      await processOtelResourceSpans(
-        [
-          buildResourceSpan({
-            traceId: "aabb",
-            spanId: "cc11",
-            attributes: [attr("lightrace.checkpoint.state", '{"v":2}')],
-          }),
-        ],
-        project.id,
-      );
-
-      const checkpoints = await db.checkpoint.findMany({ where: { traceId: "aabb" } });
-      expect(checkpoints).toHaveLength(1);
-      expect(checkpoints[0]!.state).toEqual({ v: 2 }); // updated
-    });
-
-    it("sets checkpointId on observation from lightrace.graph.checkpoint_id", async () => {
-      const project = await createTestProject();
-      await processOtelResourceSpans(
-        [
-          buildResourceSpan({
-            traceId: "aabb",
-            spanId: "cc11",
-            attributes: [attr("lightrace.graph.checkpoint_id", "cp-123")],
-          }),
-        ],
-        project.id,
-      );
-
-      const obs = await db.observation.findUnique({ where: { id: "cc11" } });
-      expect(obs!.checkpointId).toBe("cp-123");
-    });
+    const obs = await db.observation.findUnique({ where: { id: "cc11" } });
+    expect(obs!.toolCallId).toBe("call_abc123");
   });
 
   // ── Aggregates ─────────────────────────────────────────────────────

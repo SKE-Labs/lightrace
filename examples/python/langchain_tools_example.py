@@ -6,9 +6,9 @@ Demonstrates a ReAct agent with tools that are:
   - Registered with Lightrace for re-invocation from the dashboard
 
 Prerequisites:
-  1. Start Lightrace server: cd ../.. && pnpm dev
+  1. Start Lightrace server: cd ../.. && make dev
   2. Copy ../.env.example to ../.env and fill in your ANTHROPIC_API_KEY
-  3. Install deps: pip install lightrace langchain-core langchain-anthropic langgraph python-dotenv
+  3. Install deps: pip install -r requirements.txt
   4. Run: python langchain_tools_example.py
 
 Then open http://localhost:3001 to see the trace and re-run tools from the dashboard.
@@ -34,14 +34,6 @@ from langgraph.prebuilt import create_react_agent
 from lightrace import Lightrace
 from lightrace.integrations.langchain import LightraceCallbackHandler
 
-# ── Initialize Lightrace ─────────────────────────────────────────────────
-
-lt = Lightrace(
-    public_key=os.environ.get("LIGHTRACE_PUBLIC_KEY"),
-    secret_key=os.environ.get("LIGHTRACE_SECRET_KEY"),
-    host=os.environ.get("LIGHTRACE_HOST"),
-)
-
 # ── Define tools ─────────────────────────────────────────────────────────
 
 
@@ -49,10 +41,10 @@ lt = Lightrace(
 def get_weather(city: str) -> str:
     """Get the current weather for a city."""
     weather_data = {
-        "New York": "72°F, sunny",
-        "London": "58°F, cloudy",
-        "Tokyo": "65°F, partly cloudy",
-        "Ulaanbaatar": "45°F, windy",
+        "New York": "72F, sunny",
+        "London": "58F, cloudy",
+        "Tokyo": "65F, partly cloudy",
+        "Ulaanbaatar": "45F, windy",
     }
     return weather_data.get(city, f"No weather data available for {city}")
 
@@ -67,9 +59,15 @@ def calculate(expression: str) -> str:
         return f"Error: {e}"
 
 
-# ── Register tools for dashboard re-invocation ───────────────────────────
+# ── Initialize Lightrace with tools ──────────────────────────────────────
+# Pass tools= to register them for dashboard re-invocation in one step.
 
-lt.register_tools(get_weather, calculate)
+lt = Lightrace(
+    public_key=os.environ.get("LIGHTRACE_PUBLIC_KEY"),
+    secret_key=os.environ.get("LIGHTRACE_SECRET_KEY"),
+    host=os.environ.get("LIGHTRACE_HOST"),
+    tools=[get_weather, calculate],
+)
 
 # ── Create agent and run ─────────────────────────────────────────────────
 

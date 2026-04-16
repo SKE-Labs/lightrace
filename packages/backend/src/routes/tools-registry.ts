@@ -46,6 +46,7 @@ const registerSchema = z.object({
     .object({
       framework: z.string().optional(),
       replay: z.boolean().optional(),
+      graph: z.boolean().optional(),
     })
     .optional(),
 });

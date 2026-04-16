@@ -35,7 +35,6 @@ model Project {
   memberships           ProjectMembership[]
   invitations           MembershipInvitation[]
   traceForks            TraceFork[]
-  checkpoints           Checkpoint[]
 
   @@map("projects")
 }
@@ -80,7 +79,6 @@ model Trace {
   level            ObservationLevel @default(DEFAULT)
 
   observations Observation[]
-  checkpoints  Checkpoint[]
 
   isFork      Boolean     @default(false) @map("is_fork")
   sourceForks TraceFork[] @relation("SourceTrace")
@@ -135,7 +133,6 @@ model Observation {
   inputCost           Float?           @map("input_cost")
   outputCost          Float?           @map("output_cost")
   totalCost           Float?           @map("total_cost")
-  checkpointId        String?          @map("checkpoint_id")
   toolCallId          String?          @map("tool_call_id")
   createdAt           DateTime         @default(now()) @map("created_at")
   updatedAt           DateTime         @default(now()) @updatedAt @map("updated_at")
@@ -240,23 +237,4 @@ model TraceFork {
   @@index([sourceTraceId])
   @@index([projectId, createdAt(sort: Desc)])
   @@map("trace_forks")
-}
-
-model Checkpoint {
-  id            String   @id @default(cuid())
-  projectId     String   @map("project_id")
-  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  traceId       String   @map("trace_id")
-  trace         Trace    @relation(fields: [traceId], references: [id], onDelete: Cascade)
-  observationId String   @map("observation_id")
-  threadId      String   @map("thread_id")
-  stepIndex     Int      @map("step_index")
-  state         Json
-  metadata      Json?
-  createdAt     DateTime @default(now()) @map("created_at")
-
-  @@unique([traceId, observationId])
-  @@index([traceId, stepIndex])
-  @@index([threadId, stepIndex])
-  @@map("checkpoints")
 }

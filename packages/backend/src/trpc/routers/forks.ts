@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { ObservationType, ObservationLevel } from "@prisma/client";
@@ -55,7 +55,9 @@ export const forksRouter = router({
       ]);
 
       // Phase A: Create fork structure (transaction)
-      const forkedTraceId = randomUUID();
+      // Use 32-char hex (same format as OTel trace IDs) so the SDK's
+      // callback handler OTel spans land on this exact trace.
+      const forkedTraceId = randomBytes(16).toString("hex");
 
       const preForkObservations = sourceTrace.observations.filter(
         (o) => o.startTime < forkPoint.startTime,
@@ -129,13 +131,12 @@ export const forksRouter = router({
         });
       });
 
-      // Phase B: Invoke tool + optionally replay with modified messages
+      // Phase B: Invoke tool + optionally replay via LangGraph checkpoint
       const forkPointParentId = forkPoint.parentObservationId
         ? (observationIdMap[forkPoint.parentObservationId] ?? null)
         : null;
 
       let invocationResult: InvokeDevServerResult;
-      let replayResult: { output: unknown; error?: string; durationMs: number } | null = null;
 
       if (!registration?.callbackUrl) {
         invocationResult = {
@@ -174,82 +175,36 @@ export const forksRouter = router({
             invocationResult = { output: null, error: message, durationMs: 0 };
           }
 
-          // Step 2: If tool succeeded, try to continue the agent via checkpoint replay
+          // Step 2: If tool succeeded, fire-and-forget replay via LangGraph.
+          //         The SDK runs the graph in the background and traces
+          //         observations to the forked trace via OTel in real-time.
           if (!invocationResult.error) {
-            // Find the fork point's checkpoint, then get the one after it
-            const forkPointCheckpoint = await ctx.db.checkpoint.findFirst({
-              where: { traceId: input.sourceTraceId, observationId: forkPoint.id },
-              select: { stepIndex: true },
-            });
-            const checkpoint = await ctx.db.checkpoint.findFirst({
-              where: {
-                traceId: input.sourceTraceId,
-                stepIndex: { gt: forkPointCheckpoint?.stepIndex ?? -1 },
-              },
-              orderBy: { stepIndex: "asc" },
-            });
+            const threadId = sourceTrace.sessionId;
+            const capabilities = registration.capabilities as
+              | Record<string, unknown>
+              | null
+              | undefined;
 
-            if (checkpoint) {
-              const state = checkpoint.state as Record<string, unknown>;
-              const messages = state.messages as unknown[] | undefined;
+            if (threadId && capabilities?.graph) {
+              const newContent =
+                typeof invocationResult.output === "string"
+                  ? invocationResult.output
+                  : JSON.stringify(invocationResult.output);
 
-              if (messages && Array.isArray(messages)) {
-                // Replace the tool result matching this fork point's tool_call_id
-                // Fall back to matching the LAST tool message with this name
-                const toolCallId = forkPoint.toolCallId;
-                let lastMatchIdx = -1;
-                const modifiedMessages = messages.map((msg, idx) => {
-                  const m = msg as Record<string, unknown>;
-                  if (m.role === "tool") {
-                    if (toolCallId && m.tool_call_id === toolCallId) {
-                      return {
-                        ...m,
-                        content:
-                          typeof invocationResult.output === "string"
-                            ? invocationResult.output
-                            : JSON.stringify(invocationResult.output),
-                      };
-                    }
-                    if (!toolCallId && m.name === toolName) {
-                      lastMatchIdx = idx;
-                    }
-                  }
-                  return msg;
-                });
-
-                // If no tool_call_id match, replace the last name-matched message
-                if (!toolCallId && lastMatchIdx >= 0) {
-                  const m = modifiedMessages[lastMatchIdx] as Record<string, unknown>;
-                  modifiedMessages[lastMatchIdx] = {
-                    ...m,
-                    content:
-                      typeof invocationResult.output === "string"
-                        ? invocationResult.output
-                        : JSON.stringify(invocationResult.output),
-                  };
-                }
-
-                try {
-                  replayResult = await replayOnDevServer({
-                    callbackUrl: registration.callbackUrl,
-                    messages: modifiedMessages,
-                    tools: state.tools as unknown[] | undefined,
-                    model: state.model as string | undefined,
-                    system: state.system,
-                    context: input.context,
-                    apiKeyPublic: apiKey?.publicKey,
-                    timeoutMs: input.timeoutMs,
-                  });
-                } catch (err) {
-                  const message =
-                    err instanceof Error
-                      ? err.name === "TimeoutError" || err.name === "AbortError"
-                        ? `Replay timed out after ${input.timeoutMs}ms`
-                        : err.message
-                      : "Replay failed";
-                  replayResult = { output: null, error: message, durationMs: 0 };
-                }
-              }
+              // Fire-and-forget — don't await, observations arrive via OTel
+              replayOnDevServer({
+                callbackUrl: registration.callbackUrl,
+                threadId,
+                toolCallId: forkPoint.toolCallId ?? undefined,
+                toolName,
+                modifiedContent: newContent,
+                forkedTraceId,
+                context: input.context,
+                apiKeyPublic: apiKey?.publicKey,
+                timeoutMs: input.timeoutMs,
+              }).catch((err) => {
+                console.error("[forks] replay request failed:", err);
+              });
             }
           }
         }
@@ -273,23 +228,8 @@ export const forksRouter = router({
         },
       });
 
-      // If replay succeeded, create a GENERATION observation for the continuation
-      if (replayResult && !replayResult.error) {
-        await ctx.db.observation.create({
-          data: {
-            id: randomUUID(),
-            traceId: forkedTraceId,
-            projectId: ctx.projectId,
-            type: ObservationType.GENERATION,
-            name: "continuation (replay)",
-            startTime: new Date(),
-            endTime: new Date(),
-            output: (replayResult.output as object) ?? undefined,
-            parentObservationId: forkPointParentId,
-            level: ObservationLevel.DEFAULT,
-          },
-        });
-      }
+      // Continuation observations are created by the SDK via OTel in real-time
+      // (no longer created here from the replay result).
 
       await updateTraceAggregates(ctx.db, forkedTraceId);
       publishTraceUpdate(ctx.projectId, forkedTraceId);
@@ -298,7 +238,6 @@ export const forksRouter = router({
         forkId: traceFork.id,
         forkedTraceId,
         invocationResult,
-        replayResult,
       };
     }),
 

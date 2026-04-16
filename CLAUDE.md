@@ -54,7 +54,6 @@ Tool invocation flow: SDK starts embedded HTTP dev server → registers tools + 
 | Projects list       | `packages/frontend/src/app/(dashboard)/projects/page.tsx`                  |
 | Tools page          | `packages/frontend/src/app/(dashboard)/project/[projectId]/tools/page.tsx` |
 | Forks router        | `packages/backend/src/trpc/routers/forks.ts`                               |
-| Checkpoints route   | `packages/backend/src/routes/checkpoints.ts`                               |
 | Dev server client   | `packages/backend/src/lib/dev-server.ts`                                   |
 | Trace aggregates    | `packages/backend/src/ingestion/updateTraceAggregates.ts`                  |
 | OTel processing     | `packages/backend/src/ingestion/otel/processOtelSpans.ts`                  |
@@ -102,7 +101,7 @@ pnpm --filter @lightrace/backend test -- --reporter=verbose  # Verbose output
 
 - PostgreSQL on port 5435 (docker-compose)
 - Redis on port 6379 (docker-compose)
-- 10 models: User, Project, ApiKey, Trace, Observation, ToolRegistration, ProjectMembership, MembershipInvitation, TraceFork, Checkpoint
+- 9 models: User, Project, ApiKey, Trace, Observation, ToolRegistration, ProjectMembership, MembershipInvitation, TraceFork
 - RBAC: ProjectMembership with roles (OWNER, ADMIN, MEMBER, VIEWER); all tRPC routers use `projectProcedure` for authorization
 - Demo login: `demo@lightrace.dev` / `password`
 - Demo API keys: `pk-lt-demo` / `sk-lt-demo`
@@ -171,7 +170,6 @@ Backend tests use Vitest with a real PostgreSQL test database. Requires PostgreS
 | Event batch processing | `src/ingestion/processEventBatch.test.ts`        | Integration                |
 | Trace aggregates       | `src/ingestion/updateTraceAggregates.test.ts`    | Integration                |
 | OTel span processing   | `src/ingestion/otel/processOtelSpans.test.ts`    | Integration                |
-| Checkpoint HTTP API    | `src/routes/checkpoints.test.ts`                 | Integration                |
 | Ingestion HTTP API     | `src/routes/ingestion.test.ts`                   | Integration                |
 | Tool registry HTTP API | `src/routes/tools-registry.test.ts`              | Integration                |
 | Forks router           | `src/trpc/routers/forks.test.ts`                 | Integration (fetch mocked) |
