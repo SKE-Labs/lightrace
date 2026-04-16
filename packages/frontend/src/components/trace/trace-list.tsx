@@ -20,14 +20,6 @@ export function TraceList() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
-  // Reset to page 1 when search changes
-  useEffect(() => {
-    setPage(1);
-  }, [search]);
-
-  // Real-time updates via WebSocket
-  useRealtimeTraceUpdates(projectId ?? "");
-
   const { data, isLoading, isError, error } = trpc.traces.list.useQuery(
     { projectId: projectId!, limit: PAGE_SIZE, page, search: search || undefined },
     { retry: false, refetchInterval: 30000, enabled: !!projectId },
@@ -36,6 +28,14 @@ export function TraceList() {
   const traces = data?.items ?? [];
   const totalPages = data?.totalPages ?? 1;
   const totalCount = data?.totalCount ?? 0;
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  // Real-time updates via WebSocket
+  useRealtimeTraceUpdates(projectId ?? "");
 
   return (
     <>

@@ -8,7 +8,6 @@ import {
   createTestObservation,
   createTestToolRegistration,
   createTestApiKey,
-  createTestCheckpoint,
   createCaller,
 } from "../../__tests__/helpers";
 
@@ -352,24 +351,19 @@ describe("forks.create", () => {
     });
   });
 
-  // ── Phase C: Checkpoint replay ─────────────────────────────────────
+  // ── Phase C: LangGraph-native replay ───────────────────────────────
 
-  describe("Phase C — checkpoint replay", () => {
-    it("replays via checkpoint when tool succeeds and checkpoint exists", async () => {
+  describe("Phase C — LangGraph-native replay", () => {
+    it("replays via LangGraph when tool succeeds and trace has sessionId + graph capability", async () => {
       const user = await createTestUser();
       const project = await createTestProject();
       await createTestMembership({ userId: user.id, projectId: project.id });
       await createTestApiKey({ projectId: project.id });
       const now = new Date();
-      const trace = await createTestTrace({ projectId: project.id, timestamp: now });
-
-      // Pre-fork obs
-      const genObs = await createTestObservation({
-        traceId: trace.id,
+      const trace = await createTestTrace({
         projectId: project.id,
-        type: "GENERATION",
-        startTime: now,
-        endTime: new Date(now.getTime() + 1000),
+        timestamp: now,
+        sessionId: "thread-abc",
       });
 
       // Fork-point TOOL observation
@@ -387,34 +381,7 @@ describe("forks.create", () => {
         projectId: project.id,
         toolName: "search",
         callbackUrl: "http://localhost:9999",
-      });
-
-      // Checkpoint at the fork point
-      await createTestCheckpoint({
-        projectId: project.id,
-        traceId: trace.id,
-        observationId: toolObs.id,
-        threadId: "t1",
-        stepIndex: 0,
-        state: { messages: [{ role: "user", content: "hi" }] },
-      });
-
-      // Checkpoint AFTER the fork point (continuation state)
-      await createTestCheckpoint({
-        projectId: project.id,
-        traceId: trace.id,
-        observationId: genObs.id, // different obs
-        threadId: "t1",
-        stepIndex: 1,
-        state: {
-          messages: [
-            { role: "user", content: "hi" },
-            { role: "assistant", content: "hello", tool_calls: [{ id: "call_123" }] },
-            { role: "tool", content: "old result", tool_call_id: "call_123", name: "search" },
-          ],
-          tools: [{ name: "search" }],
-          model: "gpt-4",
-        },
+        capabilities: { replay: true, graph: true },
       });
 
       // Mock: health check → invoke → replay
@@ -448,29 +415,25 @@ describe("forks.create", () => {
         modifiedInput: { q: "new query" },
       });
 
-      // Replay succeeded
-      expect(result.replayResult).not.toBeNull();
-      expect(result.replayResult!.output).toBe("continued generation");
-
-      // Check that a GENERATION observation was created for the replay
-      const genObs2 = await db.observation.findMany({
-        where: { traceId: result.forkedTraceId, type: "GENERATION" },
-      });
-      expect(genObs2.some((o) => o.name === "continuation (replay)")).toBe(true);
-
-      // Verify the replay call had modified messages (tool result replaced)
+      // Replay is fire-and-forget — verify the call was made with correct params
       const replayCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[2]!;
       const replayBody = JSON.parse(replayCall[1].body as string);
-      const toolMsg = replayBody.messages.find((m: Record<string, unknown>) => m.role === "tool");
-      expect(toolMsg.content).toBe("new tool result");
+      expect(replayBody.thread_id).toBe("thread-abc");
+      expect(replayBody.tool_call_id).toBe("call_123");
+      expect(replayBody.tool_name).toBe("search");
+      expect(replayBody.modified_content).toBe("new tool result");
+      expect(replayBody.forked_trace_id).toBe(result.forkedTraceId);
     });
 
-    it("replaces tool result by name fallback when no toolCallId", async () => {
+    it("sends replay without tool_call_id when observation has none", async () => {
       const user = await createTestUser();
       const project = await createTestProject();
       await createTestMembership({ userId: user.id, projectId: project.id });
       await createTestApiKey({ projectId: project.id });
-      const trace = await createTestTrace({ projectId: project.id });
+      const trace = await createTestTrace({
+        projectId: project.id,
+        sessionId: "thread-xyz",
+      });
 
       const toolObs = await createTestObservation({
         traceId: trace.id,
@@ -485,35 +448,7 @@ describe("forks.create", () => {
         projectId: project.id,
         toolName: "search",
         callbackUrl: "http://localhost:9999",
-      });
-
-      // Fork-point checkpoint
-      await createTestCheckpoint({
-        projectId: project.id,
-        traceId: trace.id,
-        observationId: toolObs.id,
-        threadId: "t1",
-        stepIndex: 0,
-        state: {},
-      });
-
-      // Continuation checkpoint with tool message matched by name
-      const otherObs = await createTestObservation({
-        traceId: trace.id,
-        projectId: project.id,
-        type: "GENERATION",
-        startTime: new Date("2026-01-01T00:02:00Z"),
-      });
-      await createTestCheckpoint({
-        projectId: project.id,
-        traceId: trace.id,
-        observationId: otherObs.id,
-        threadId: "t1",
-        stepIndex: 1,
-        state: {
-          messages: [{ role: "tool", content: "old", name: "search" }],
-          model: "gpt-4",
-        },
+        capabilities: { replay: true, graph: true },
       });
 
       globalThis.fetch = vi
@@ -546,13 +481,16 @@ describe("forks.create", () => {
         modifiedInput: {},
       });
 
-      // The replay call should have replaced the tool message
+      // The replay call should omit tool_call_id and send tool_name
       const replayCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[2]!;
       const replayBody = JSON.parse(replayCall[1].body as string);
-      expect(replayBody.messages[0].content).toBe("new result");
+      expect(replayBody.thread_id).toBe("thread-xyz");
+      expect(replayBody.tool_call_id).toBeUndefined();
+      expect(replayBody.tool_name).toBe("search");
+      expect(replayBody.modified_content).toBe("new result");
     });
 
-    it("skips replay when no checkpoint exists", async () => {
+    it("skips replay when trace has no sessionId", async () => {
       const user = await createTestUser();
       const project = await createTestProject();
       await createTestMembership({ userId: user.id, projectId: project.id });
@@ -569,9 +507,8 @@ describe("forks.create", () => {
         projectId: project.id,
         toolName: "search",
         callbackUrl: "http://localhost:9999",
+        capabilities: { replay: true, graph: true },
       });
-
-      // No checkpoints created
 
       globalThis.fetch = vi
         .fn()
@@ -587,15 +524,61 @@ describe("forks.create", () => {
         });
 
       const caller = createCaller(user.id, user.email);
-      const result = await caller.forks.create({
+      await caller.forks.create({
         projectId: project.id,
         sourceTraceId: trace.id,
         forkPointObservationId: toolObs.id,
         modifiedInput: {},
       });
 
-      expect(result.replayResult).toBeNull();
       // Only 2 fetch calls (health + invoke), no replay
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it("skips replay when tool registration has no graph capability", async () => {
+      const user = await createTestUser();
+      const project = await createTestProject();
+      await createTestMembership({ userId: user.id, projectId: project.id });
+      await createTestApiKey({ projectId: project.id });
+      const trace = await createTestTrace({
+        projectId: project.id,
+        sessionId: "thread-123",
+      });
+      const toolObs = await createTestObservation({
+        traceId: trace.id,
+        projectId: project.id,
+        type: "TOOL",
+        name: "search",
+        startTime: new Date("2026-01-01T00:01:00Z"),
+      });
+      await createTestToolRegistration({
+        projectId: project.id,
+        toolName: "search",
+        callbackUrl: "http://localhost:9999",
+        // no capabilities — graph not supported
+      });
+
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValueOnce({ ok: true })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              code: 200,
+              message: "OK",
+              response: { output: "result", durationMs: 50 },
+            }),
+        });
+
+      const caller = createCaller(user.id, user.email);
+      await caller.forks.create({
+        projectId: project.id,
+        sourceTraceId: trace.id,
+        forkPointObservationId: toolObs.id,
+        modifiedInput: {},
+      });
+
       expect(globalThis.fetch).toHaveBeenCalledTimes(2);
     });
   });

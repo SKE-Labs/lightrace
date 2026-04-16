@@ -10,7 +10,6 @@ import { extractUser } from "./middleware/auth";
 import { ingestionRoutes } from "./routes/ingestion";
 import { otelRoutes } from "./routes/otel";
 import { toolsRegistryRoutes } from "./routes/tools-registry";
-import { checkpointRoutes } from "./routes/checkpoints";
 import { apiResponse } from "./utils/api-response";
 import { realtimeEmitter } from "./realtime/pubsub";
 
@@ -40,7 +39,6 @@ app.use(
 app.route("/api/public/ingestion", ingestionRoutes);
 app.route("/api/public/otel/v1/traces", otelRoutes);
 app.route("/api/public/tools", toolsRegistryRoutes);
-app.route("/api/public/checkpoints", checkpointRoutes);
 
 // tRPC endpoint (authenticated via internal secret from frontend proxy)
 app.all("/trpc/*", async (c) => {

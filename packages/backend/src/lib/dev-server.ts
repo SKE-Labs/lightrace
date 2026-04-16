@@ -75,22 +75,22 @@ export async function invokeDevServer(opts: InvokeDevServerOpts): Promise<Invoke
 
 export interface ReplayDevServerOpts {
   callbackUrl: string;
-  messages: unknown[];
-  tools?: unknown[];
-  model?: string;
-  system?: unknown;
+  threadId: string;
+  toolCallId?: string;
+  toolName: string;
+  modifiedContent: string;
+  forkedTraceId: string;
   context?: Record<string, unknown>;
   apiKeyPublic?: string;
   timeoutMs: number;
 }
 
-export interface ReplayDevServerResult {
-  output: unknown;
-  error?: string;
-  durationMs: number;
-}
-
-export async function replayOnDevServer(opts: ReplayDevServerOpts): Promise<ReplayDevServerResult> {
+/**
+ * Fire-and-forget: tells the SDK to start the fork replay in the background.
+ * The SDK traces observations to the forked trace via OTel in real-time.
+ * Returns once the SDK acknowledges the request (does NOT wait for completion).
+ */
+export async function replayOnDevServer(opts: ReplayDevServerOpts): Promise<void> {
   const response = await fetch(`${opts.callbackUrl}/replay`, {
     method: "POST",
     headers: {
@@ -98,10 +98,11 @@ export async function replayOnDevServer(opts: ReplayDevServerOpts): Promise<Repl
       ...(opts.apiKeyPublic ? { Authorization: `Bearer ${opts.apiKeyPublic}` } : {}),
     },
     body: JSON.stringify({
-      messages: opts.messages,
-      ...(opts.tools ? { tools: opts.tools } : {}),
-      ...(opts.model ? { model: opts.model } : {}),
-      ...(opts.system ? { system: opts.system } : {}),
+      thread_id: opts.threadId,
+      ...(opts.toolCallId ? { tool_call_id: opts.toolCallId } : {}),
+      tool_name: opts.toolName,
+      modified_content: opts.modifiedContent,
+      forked_trace_id: opts.forkedTraceId,
       ...(opts.context ? { context: opts.context } : {}),
     }),
     signal: AbortSignal.timeout(opts.timeoutMs),
@@ -111,11 +112,4 @@ export async function replayOnDevServer(opts: ReplayDevServerOpts): Promise<Repl
     const errorBody = await response.text().catch(() => "Unknown error");
     throw new Error(`SDK dev server returned ${response.status}: ${errorBody}`);
   }
-
-  const envelope = (await response.json()) as {
-    code: number;
-    message: string;
-    response: ReplayDevServerResult;
-  };
-  return envelope.response;
 }

@@ -551,7 +551,7 @@ async function processSpan(
       (attrs[LightraceOtelSpanAttributes.VERSION] as string) ??
       (attrs[LangfuseOtelSpanAttributes.VERSION] as string) ??
       null,
-    checkpointId: (attrs[LightraceOtelSpanAttributes.GRAPH_CHECKPOINT_ID] as string) ?? null,
+    toolCallId: (attrs[LightraceOtelSpanAttributes.TOOL_CALL_ID] as string) ?? null,
   };
 
   await tx.observation.upsert({
@@ -559,28 +559,6 @@ async function processSpan(
     create: { id: spanId, ...observationData },
     update: observationData,
   });
-
-  const checkpointState = safeJsonParse(
-    attrs[LightraceOtelSpanAttributes.CHECKPOINT_STATE] as string,
-  );
-  if (checkpointState) {
-    const threadId = (attrs[LightraceOtelSpanAttributes.GRAPH_THREAD_ID] as string) ?? traceId;
-    const stepIndex = await tx.checkpoint.count({ where: { traceId } });
-    await tx.checkpoint.upsert({
-      where: { traceId_observationId: { traceId, observationId: spanId } },
-      create: {
-        projectId,
-        traceId,
-        observationId: spanId,
-        threadId,
-        stepIndex,
-        state: checkpointState as object,
-      },
-      update: {
-        state: checkpointState as object,
-      },
-    });
-  }
 
   // Update denormalized aggregates on the parent trace
   await updateTraceAggregates(tx, traceId);
