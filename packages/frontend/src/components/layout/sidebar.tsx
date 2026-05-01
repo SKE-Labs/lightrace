@@ -37,7 +37,7 @@ export function Sidebar({ projectId }: SidebarProps) {
                       "flex items-center justify-center size-9 rounded-md transition-colors duration-150",
                       isActive
                         ? "bg-foreground/[0.07] text-foreground"
-                        : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground/80",
+                        : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground",
                     )}
                   />
                 }

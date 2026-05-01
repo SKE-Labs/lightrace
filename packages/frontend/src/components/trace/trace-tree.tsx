@@ -169,21 +169,21 @@ export function TraceTree({
       {/* Trace root node */}
       <div
         className={cn(
-          "relative flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors duration-100",
-          selectedId === trace.id
-            ? "bg-foreground/[0.06] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[2px] before:bg-primary before:rounded-r-[1px]"
-            : "hover:bg-foreground/[0.03]",
+          "flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors duration-100",
+          selectedId === trace.id ? "bg-foreground/7" : "hover:bg-foreground/3",
         )}
         onClick={() => onSelect(trace.id, true)}
       >
         <span className="w-4 shrink-0" />
         <Tooltip>
           <TooltipTrigger className="inline-flex">
-            <Route className="size-4 shrink-0 text-chart-4" strokeWidth={1.5} />
+            <Route className="size-4 shrink-0 text-chart-4" strokeWidth={2} />
           </TooltipTrigger>
           <TooltipContent>Trace</TooltipContent>
         </Tooltip>
-        <span className="text-sm font-medium truncate">{trace.name || trace.id.slice(0, 8)}</span>
+        <span className="text-[12.5px] truncate min-w-0 flex-1 text-foreground">
+          {trace.name || trace.id.slice(0, 8)}
+        </span>
         {traceDuration > 0 && (
           <span className="ml-auto text-[11px] text-muted-foreground font-mono">
             {formatDuration(traceDuration)}
@@ -207,13 +207,11 @@ export function TraceTree({
           <div
             key={obs.id}
             className={cn(
-              "relative flex items-center pr-3 cursor-pointer transition-colors duration-100 select-none",
+              "flex items-center pr-3 cursor-pointer transition-colors duration-100 select-none",
               "h-7", // 28px row height
-              isSelected
-                ? "bg-foreground/[0.06] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[2px] before:bg-primary before:rounded-r-[1px]"
-                : "hover:bg-foreground/[0.03]",
-              isHighlighted && "ring-1 ring-inset ring-primary/40",
-              isForkPoint && !isSelected && "ring-1 ring-inset ring-primary/40 bg-primary/[0.04]",
+              isSelected ? "bg-foreground/[0.07]" : "hover:bg-foreground/3",
+              isHighlighted && "ring-1 ring-inset ring-primary/30",
+              isForkPoint && !isSelected && "ring-1 ring-inset ring-primary/30 bg-row-fork",
             )}
             onClick={() => onSelect(obs.id, false)}
           >
@@ -239,7 +237,7 @@ export function TraceTree({
               >
                 <ChevronRight
                   className={cn("size-3 transition-transform", !isCollapsed && "rotate-90")}
-                  strokeWidth={2}
+                  strokeWidth={2.5}
                 />
               </button>
             ) : (
@@ -249,13 +247,13 @@ export function TraceTree({
             {/* Type icon (PRESERVED — colors from observation-icons.ts) */}
             <Tooltip>
               <TooltipTrigger className="inline-flex shrink-0 mx-1">
-                <Icon className={cn("size-[15px]", color)} strokeWidth={1.5} />
+                <Icon className={cn("size-3.75", color)} strokeWidth={2} />
               </TooltipTrigger>
               <TooltipContent>{label}</TooltipContent>
             </Tooltip>
 
             {/* Name */}
-            <span className="text-[12.5px] truncate min-w-0 flex-1 text-foreground/85">
+            <span className="text-[12.5px] truncate min-w-0 flex-1 text-foreground">
               {obs.name || obs.id.slice(0, 8)}
             </span>
 
@@ -266,14 +264,14 @@ export function TraceTree({
 
             {/* Tokens */}
             {obs.totalTokens > 0 && (
-              <span className="text-[10px] text-muted-foreground/80 font-mono whitespace-nowrap ml-1.5">
+              <span className="text-[10px] text-muted-foreground font-mono whitespace-nowrap ml-1.5">
                 {obs.totalTokens}t
               </span>
             )}
 
             {/* Cost */}
             {obs.totalCost !== null && Number(obs.totalCost) > 0 && (
-              <span className="text-[10px] text-muted-foreground/80 font-mono whitespace-nowrap ml-1.5">
+              <span className="text-[10px] text-muted-foreground font-mono whitespace-nowrap ml-1.5">
                 {formatCost(Number(obs.totalCost))}
               </span>
             )}

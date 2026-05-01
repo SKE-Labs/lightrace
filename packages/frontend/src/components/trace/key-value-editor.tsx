@@ -2,6 +2,17 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+// Borderless inline select for in-editor use — strips the form-input chrome
+const INLINE_SELECT_TRIGGER =
+  "border-transparent bg-transparent dark:bg-transparent rounded-none px-1.5 hover:bg-foreground/[0.04] focus-visible:ring-0 focus-visible:border-transparent";
 
 export type ParamType = "string" | "number" | "boolean" | "json";
 
@@ -154,19 +165,23 @@ export function KeyValueEditor({
                     <textarea
                       value={row.value}
                       onChange={(e) => updateRow(i, { value: e.target.value })}
-                      className="w-full px-1.5 py-1.5 bg-transparent font-mono text-xs focus:outline-none resize-y min-h-[28px]"
+                      className="w-full px-1.5 py-1.5 bg-transparent font-mono text-xs focus:outline-none resize-y min-h-7"
                       spellCheck={false}
                       rows={Math.min(row.value.split("\n").length, 4)}
                     />
                   ) : row.type === "boolean" ? (
-                    <select
+                    <Select
                       value={row.value}
-                      onChange={(e) => updateRow(i, { value: e.target.value })}
-                      className="w-full px-1.5 py-1.5 bg-transparent text-xs focus:outline-none"
+                      onValueChange={(v) => v && updateRow(i, { value: v })}
                     >
-                      <option value="true">true</option>
-                      <option value="false">false</option>
-                    </select>
+                      <SelectTrigger size="sm" className={cn(INLINE_SELECT_TRIGGER, "w-full")}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="true">true</SelectItem>
+                        <SelectItem value="false">false</SelectItem>
+                      </SelectContent>
+                    </Select>
                   ) : (
                     <input
                       value={row.value}
@@ -181,16 +196,23 @@ export function KeyValueEditor({
                   )}
                 </div>
                 <div className="border-l border-border px-1">
-                  <select
+                  <Select
                     value={row.type}
-                    onChange={(e) => updateRow(i, { type: e.target.value as ParamType })}
-                    className="w-full px-1 py-1.5 bg-transparent text-xs text-muted-foreground focus:outline-none"
+                    onValueChange={(v) => v && updateRow(i, { type: v as ParamType })}
                   >
-                    <option value="string">string</option>
-                    <option value="number">number</option>
-                    <option value="boolean">boolean</option>
-                    <option value="json">json</option>
-                  </select>
+                    <SelectTrigger
+                      size="sm"
+                      className={cn(INLINE_SELECT_TRIGGER, "w-full text-muted-foreground")}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="string">string</SelectItem>
+                      <SelectItem value="number">number</SelectItem>
+                      <SelectItem value="boolean">boolean</SelectItem>
+                      <SelectItem value="json">json</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="border-l border-border flex items-start justify-center pt-1.5">
                   <button

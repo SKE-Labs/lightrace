@@ -278,7 +278,7 @@ export function ToolRerunModal({
                 )}
                 <Tooltip>
                   <TooltipTrigger className="cursor-default">
-                    <Info className="size-3 text-muted-foreground/50 ml-0.5" />
+                    <Info className="size-3 text-muted-foreground ml-0.5" />
                   </TooltipTrigger>
                   <TooltipContent side="right" className="max-w-[250px]">
                     <p className="text-xs">

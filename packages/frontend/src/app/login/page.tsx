@@ -46,7 +46,7 @@ function LoginForm() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-5">
-      <div className="w-full max-w-[340px] flex flex-col gap-6">
+      <div className="w-full max-w-85 flex flex-col gap-6">
         <div className="flex flex-col items-center gap-3 text-center">
           <img src="/lr_primary.svg" alt="LightRace" className="h-11 w-auto dark:hidden" />
           <img src="/lr_white.svg" alt="LightRace" className="h-11 w-auto hidden dark:block" />
@@ -61,7 +61,6 @@ function LoginForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="demo@lightrace.dev"
-              className="h-9 text-[13px]"
               required
             />
           </div>
@@ -72,7 +71,6 @@ function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="password"
-              className="h-9 text-[13px]"
               required
             />
           </div>
@@ -91,7 +89,7 @@ function LoginForm() {
           Don&apos;t have an account?{" "}
           <Link
             href="/register"
-            className="text-foreground/70 hover:text-foreground hover:underline"
+            className="text-muted-foreground hover:text-foreground hover:underline"
           >
             Sign up
           </Link>

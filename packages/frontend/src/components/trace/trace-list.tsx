@@ -66,10 +66,11 @@ export function TraceList() {
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-end px-6 py-3">
         <Input
-          placeholder="Search by name..."
+          size="sm"
+          placeholder="Search by name…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-64 h-8"
+          className="w-64"
         />
       </div>
       <div className="flex-1 overflow-auto">
@@ -225,7 +226,7 @@ function FragmentRow({
                 variant="outline"
                 className="shrink-0 gap-1 text-primary border-primary/30 bg-primary/10"
               >
-                <GitBranch className="size-3" strokeWidth={1.5} />
+                <GitBranch className="size-3" strokeWidth={2} />
                 {trace.forkCount}
               </Badge>
             )}
@@ -270,7 +271,7 @@ function FragmentRow({
           return (
             <TableRow
               key={fork.id}
-              className="cursor-pointer bg-row-fork hover:bg-foreground/[0.06] text-foreground/80"
+              className="cursor-pointer bg-row-fork hover:bg-foreground/7"
               onClick={() => onNavigate(fork.id)}
             >
               <TableCell>
@@ -279,7 +280,7 @@ function FragmentRow({
                   <span
                     className={cn("tree-guide -ml-1", isLast ? "tree-guide-l" : "tree-guide-t")}
                   />
-                  <GitBranch className="size-3 text-primary shrink-0" strokeWidth={1.5} />
+                  <GitBranch className="size-3 text-primary shrink-0" strokeWidth={2} />
                   {fork.hasError && (
                     <span
                       className="size-1.5 rounded-full bg-error shrink-0 ml-1"
@@ -292,7 +293,7 @@ function FragmentRow({
                       title="Has warnings"
                     />
                   )}
-                  <span className="text-foreground/85 truncate ml-1">
+                  <span className="text-foreground truncate ml-1">
                     {fork.name || fork.id.slice(0, 8)}
                   </span>
                   {fork.primaryModel && (

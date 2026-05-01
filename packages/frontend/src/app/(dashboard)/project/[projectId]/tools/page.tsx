@@ -94,7 +94,8 @@ export default function ToolsPage() {
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
           <Input
-            placeholder="Search tools..."
+            size="sm"
+            placeholder="Search tools…"
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
             className="w-64 pl-8"

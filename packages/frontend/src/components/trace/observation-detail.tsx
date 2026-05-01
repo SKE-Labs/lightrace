@@ -196,7 +196,7 @@ function TraceDetailPanel({
             <div>
               <h3 className={cn(SECTION_LABEL, "mb-3 flex items-center gap-1.5")}>
                 Forks
-                <span className="text-muted-foreground/70 normal-case tracking-normal">
+                <span className="text-muted-foreground normal-case tracking-normal">
                   ({trace.forks.length})
                 </span>
               </h3>
@@ -384,7 +384,7 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
         {observation.level === "ERROR" && observation.statusMessage && (
           <Alert variant="destructive" className="mx-4 my-2">
             <XCircle className="size-4" strokeWidth={1.5} />
-            <AlertDescription className="whitespace-pre-wrap break-words font-mono leading-relaxed">
+            <AlertDescription className="whitespace-pre-wrap wrap-break-word font-mono leading-relaxed">
               {observation.statusMessage}
             </AlertDescription>
             <CopyButton text={observation.statusMessage} className="absolute top-1.5 right-2" />

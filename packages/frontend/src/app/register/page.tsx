@@ -63,7 +63,7 @@ export default function RegisterPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-5">
-      <div className="w-full max-w-[340px] flex flex-col gap-6">
+      <div className="w-full max-w-85 flex flex-col gap-6">
         <div className="flex flex-col items-center gap-3 text-center">
           <img src="/lr_primary.svg" alt="LightRace" className="h-11 w-auto dark:hidden" />
           <img src="/lr_white.svg" alt="LightRace" className="h-11 w-auto hidden dark:block" />
@@ -78,7 +78,6 @@ export default function RegisterPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Your name"
-              className="h-9 text-[13px]"
               required
             />
           </div>
@@ -89,7 +88,6 @@ export default function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="h-9 text-[13px]"
               required
             />
           </div>
@@ -100,7 +98,6 @@ export default function RegisterPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Min 6 characters"
-              className="h-9 text-[13px]"
               required
               minLength={6}
             />
@@ -112,7 +109,6 @@ export default function RegisterPage() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Confirm password"
-              className="h-9 text-[13px]"
               required
               minLength={6}
             />
@@ -130,7 +126,10 @@ export default function RegisterPage() {
 
         <p className="text-center text-[11px] text-muted-foreground">
           Already have an account?{" "}
-          <Link href="/login" className="text-foreground/70 hover:text-foreground hover:underline">
+          <Link
+            href="/login"
+            className="text-muted-foreground hover:text-foreground hover:underline"
+          >
             Sign in
           </Link>
         </p>

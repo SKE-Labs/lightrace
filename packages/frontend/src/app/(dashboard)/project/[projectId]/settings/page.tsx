@@ -6,6 +6,14 @@ import { trpc } from "@/lib/trpc";
 import { useProjectStore } from "@/lib/project-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -25,10 +33,7 @@ import {
 import { UserPlus } from "lucide-react";
 import { CopyButton } from "@/components/ui/copy-button";
 import { RoleBadge, isAdmin as checkIsAdmin } from "@/lib/role-config";
-import { cn, SECTION_LABEL } from "@/lib/utils";
-
-const SELECT_CLASS =
-  "h-9 w-full rounded-md border border-input bg-input/20 dark:bg-input/30 px-3 text-[13px] text-foreground transition-colors duration-150 outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30";
+import { SECTION_LABEL } from "@/lib/utils";
 
 // --- API Keys Tab ---
 function ApiKeysTab() {
@@ -89,7 +94,6 @@ function ApiKeysTab() {
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
                       placeholder="e.g. Development"
-                      className="h-9 text-[13px]"
                     />
                   </div>
                   <div className="flex justify-end">
@@ -152,7 +156,7 @@ lt = Lightrace(
               </TableRow>
             )}
             {apiKeys?.map((key) => (
-              <TableRow key={key.id} className="hover:bg-foreground/[0.03]">
+              <TableRow key={key.id} className="hover:bg-foreground/3">
                 <TableCell className="font-mono text-xs">{key.publicKey}</TableCell>
                 <TableCell className="font-mono text-xs text-muted-foreground">
                   {key.displaySecretKey}
@@ -263,15 +267,19 @@ function MembersTab() {
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label className={SECTION_LABEL}>Role</label>
-                  <select
+                  <Select
                     value={inviteRole}
-                    onChange={(e) => setInviteRole(e.target.value as "ADMIN" | "MEMBER" | "VIEWER")}
-                    className={SELECT_CLASS}
+                    onValueChange={(v) => v && setInviteRole(v as "ADMIN" | "MEMBER" | "VIEWER")}
                   >
-                    <option value="ADMIN">Admin</option>
-                    <option value="MEMBER">Member</option>
-                    <option value="VIEWER">Viewer</option>
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ADMIN">Admin</SelectItem>
+                      <SelectItem value="MEMBER">Member</SelectItem>
+                      <SelectItem value="VIEWER">Viewer</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1.5">
                   <label className={SECTION_LABEL}>Email address</label>
@@ -280,7 +288,6 @@ function MembersTab() {
                     onChange={(e) => setInviteEmail(e.target.value)}
                     placeholder="name@example.com"
                     type="email"
-                    className="h-9 text-[13px]"
                   />
                 </div>
                 {inviteMutation.error && (
@@ -332,7 +339,7 @@ function MembersTab() {
               </TableRow>
             )}
             {members?.map((member) => (
-              <TableRow key={member.id} className="hover:bg-foreground/[0.03]">
+              <TableRow key={member.id} className="hover:bg-foreground/3">
                 <TableCell>
                   <div>
                     <span className="font-medium text-foreground">
@@ -345,22 +352,27 @@ function MembersTab() {
                 </TableCell>
                 <TableCell>
                   {isAdmin && member.role !== "OWNER" ? (
-                    <select
+                    <Select
                       value={member.role}
-                      onChange={(e) =>
+                      onValueChange={(v) =>
+                        v &&
                         updateRoleMutation.mutate({
                           projectId,
                           userId: member.userId,
-                          role: e.target.value as "OWNER" | "ADMIN" | "MEMBER" | "VIEWER",
+                          role: v as "OWNER" | "ADMIN" | "MEMBER" | "VIEWER",
                         })
                       }
-                      className={cn(SELECT_CLASS, "h-7 text-xs w-auto px-2")}
                     >
-                      {role === "OWNER" && <option value="OWNER">Owner</option>}
-                      <option value="ADMIN">Admin</option>
-                      <option value="MEMBER">Member</option>
-                      <option value="VIEWER">Viewer</option>
-                    </select>
+                      <SelectTrigger size="sm" className="w-auto">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {role === "OWNER" && <SelectItem value="OWNER">Owner</SelectItem>}
+                        <SelectItem value="ADMIN">Admin</SelectItem>
+                        <SelectItem value="MEMBER">Member</SelectItem>
+                        <SelectItem value="VIEWER">Viewer</SelectItem>
+                      </SelectContent>
+                    </Select>
                   ) : (
                     <RoleBadge role={member.role} />
                   )}
@@ -410,7 +422,7 @@ function MembersTab() {
               </TableHeader>
               <TableBody>
                 {invitations.map((inv) => (
-                  <TableRow key={inv.id} className="hover:bg-foreground/[0.03]">
+                  <TableRow key={inv.id} className="hover:bg-foreground/3">
                     <TableCell>{inv.email}</TableCell>
                     <TableCell>
                       <RoleBadge role={inv.role} />
@@ -483,21 +495,15 @@ function GeneralTab() {
         <div className="space-y-3 max-w-md">
           <div className="space-y-1.5">
             <label className={SECTION_LABEL}>Project name</label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={!isAdmin}
-              className="h-9 text-[13px]"
-            />
+            <Input value={name} onChange={(e) => setName(e.target.value)} disabled={!isAdmin} />
           </div>
           <div className="space-y-1.5">
             <label className={SECTION_LABEL}>Description</label>
-            <textarea
+            <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={!isAdmin}
               rows={3}
-              className="w-full rounded-md border border-input bg-input/20 dark:bg-input/30 px-3 py-2 text-[13px] text-foreground transition-colors duration-150 outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 resize-none disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Optional project description"
             />
           </div>
