@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface JsonViewerProps {
   data: unknown;
@@ -68,12 +70,16 @@ function JsonNode({
       <span>
         <button
           onClick={() => setExpanded(!expanded)}
-          className="text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
         >
-          {expanded ? "▾" : "▸"} [{data.length}]
+          <ChevronRight
+            className={cn("size-3 transition-transform", expanded && "rotate-90")}
+            strokeWidth={2}
+          />
+          [{data.length}]
         </button>
         {expanded && (
-          <div className="ml-4 border-l border-border/50 pl-2">
+          <div className="ml-3 border-l border-border/50 pl-2">
             {data.map((item, i) => (
               <div key={i} className="py-0.5">
                 <span className="text-muted-foreground mr-1">{i}:</span>
@@ -93,14 +99,18 @@ function JsonNode({
       <span>
         <button
           onClick={() => setExpanded(!expanded)}
-          className="text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
         >
-          {expanded ? "▾" : "▸"} {"{"}
+          <ChevronRight
+            className={cn("size-3 transition-transform", expanded && "rotate-90")}
+            strokeWidth={2}
+          />
+          {"{"}
           {entries.length}
           {"}"}
         </button>
         {expanded && (
-          <div className="ml-4 border-l border-border/50 pl-2">
+          <div className="ml-3 border-l border-border/50 pl-2">
             {entries.map(([key, value]) => (
               <div key={key} className="py-0.5">
                 <span className="text-syntax-key">{key}</span>

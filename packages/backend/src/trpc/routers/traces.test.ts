@@ -10,7 +10,7 @@ import {
 } from "../../__tests__/helpers";
 
 describe("traces.list", () => {
-  it("returns paginated traces with fork counts", async () => {
+  it("returns paginated root traces with forks nested under their parent", async () => {
     const user = await createTestUser();
     const project = await createTestProject();
     await createTestMembership({ userId: user.id, projectId: project.id });
@@ -31,10 +31,21 @@ describe("traces.list", () => {
     const caller = createCaller(user.id, user.email);
     const result = await caller.traces.list({ projectId: project.id, limit: 10, page: 1 });
 
-    expect(result.items.length).toBe(3);
-    expect(result.totalCount).toBe(3);
+    // Forks are nested under their parent — totals reflect roots only.
+    expect(result.items.length).toBe(2);
+    expect(result.totalCount).toBe(2);
+
     const t1 = result.items.find((t) => t.id === trace1.id);
     expect(t1!.forkCount).toBe(1);
+    expect(t1!.forks).toHaveLength(1);
+    expect(t1!.forks[0]!.id).toBe(forked.id);
+    expect(t1!.forks[0]!.isFork).toBe(true);
+
+    const t2 = result.items.find((t) => t.name === "trace-2");
+    expect(t2!.forks).toHaveLength(0);
+
+    // Forks should not appear at the root level
+    expect(result.items.find((t) => t.id === forked.id)).toBeUndefined();
   });
 
   it("searches by name (case-insensitive)", async () => {

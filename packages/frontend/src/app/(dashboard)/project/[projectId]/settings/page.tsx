@@ -14,9 +14,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { UserPlus } from "lucide-react";
 import { CopyButton } from "@/components/ui/copy-button";
 import { RoleBadge, isAdmin as checkIsAdmin } from "@/lib/role-config";
+import { cn, SECTION_LABEL } from "@/lib/utils";
+
+const SELECT_CLASS =
+  "h-9 w-full rounded-md border border-input bg-input/20 dark:bg-input/30 px-3 text-[13px] text-foreground transition-colors duration-150 outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30";
 
 // --- API Keys Tab ---
 function ApiKeysTab() {
@@ -53,7 +65,7 @@ function ApiKeysTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-sm font-medium">API Keys</h2>
           <p className="text-xs text-muted-foreground mt-1">
@@ -63,58 +75,39 @@ function ApiKeysTab() {
         {isAdmin && (
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger render={<Button size="sm" />} onClick={() => setNewKeyResult(null)}>
-              Create Key
+              Create key
             </DialogTrigger>
             <DialogContent className="sm:max-w-lg">
               <DialogHeader>
-                <DialogTitle>{newKeyResult ? "API Key Created" : "Create API Key"}</DialogTitle>
+                <DialogTitle>{newKeyResult ? "API key created" : "Create API key"}</DialogTitle>
               </DialogHeader>
               {!newKeyResult ? (
                 <div className="space-y-4">
-                  <div>
-                    <label className="text-xs text-muted-foreground">Note (optional)</label>
+                  <div className="space-y-1.5">
+                    <label className={SECTION_LABEL}>Note (optional)</label>
                     <Input
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
                       placeholder="e.g. Development"
+                      className="h-9 text-[13px]"
                     />
                   </div>
-                  <Button onClick={handleCreate} disabled={createMutation.isPending}>
-                    {createMutation.isPending ? "Creating..." : "Create"}
-                  </Button>
+                  <div className="flex justify-end">
+                    <Button onClick={handleCreate} disabled={createMutation.isPending}>
+                      {createMutation.isPending ? "Creating…" : "Create"}
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <p className="text-sm text-warning">
+                  <p className="text-xs text-warning">
                     Save these keys now. The secret key will not be shown again.
                   </p>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Public Key</label>
-                    <div className="flex items-center gap-2 mt-1 rounded bg-muted p-2">
-                      <code className="text-xs font-mono break-all flex-1">
-                        {newKeyResult.publicKey}
-                      </code>
-                      <CopyButton
-                        text={newKeyResult.publicKey}
-                        className="text-muted-foreground hover:text-foreground"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Secret Key</label>
-                    <div className="flex items-center gap-2 mt-1 rounded bg-muted p-2">
-                      <code className="text-xs font-mono break-all flex-1">
-                        {newKeyResult.secretKey}
-                      </code>
-                      <CopyButton
-                        text={newKeyResult.secretKey}
-                        className="text-muted-foreground hover:text-foreground"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">SDK Usage</label>
-                    <pre className="mt-1 rounded bg-muted p-3 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">
+                  <KeyReveal label="Public key" value={newKeyResult.publicKey} />
+                  <KeyReveal label="Secret key" value={newKeyResult.secretKey} />
+                  <div className="space-y-1.5">
+                    <label className={SECTION_LABEL}>SDK usage</label>
+                    <pre className="rounded-md bg-muted/60 ring-1 ring-foreground/10 p-3 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">
                       {`from lightrace import Lightrace
 
 lt = Lightrace(
@@ -124,9 +117,11 @@ lt = Lightrace(
 )`}
                     </pre>
                   </div>
-                  <Button variant="secondary" onClick={() => setDialogOpen(false)}>
-                    Done
-                  </Button>
+                  <div className="flex justify-end">
+                    <Button variant="secondary" onClick={() => setDialogOpen(false)}>
+                      Done
+                    </Button>
+                  </div>
                 </div>
               )}
             </DialogContent>
@@ -134,58 +129,76 @@ lt = Lightrace(
         )}
       </div>
 
-      <div className="rounded-md border border-border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-muted-foreground">
-              <th className="px-4 py-3 text-left font-medium">Public Key</th>
-              <th className="px-4 py-3 text-left font-medium">Secret Key</th>
-              <th className="px-4 py-3 text-left font-medium">Note</th>
-              <th className="px-4 py-3 text-left font-medium">Created</th>
-              {isAdmin && <th className="px-4 py-3 text-right font-medium">Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
+      <div className="rounded-md border border-border overflow-hidden">
+        <Table density="tight">
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead>Public key</TableHead>
+              <TableHead>Secret key</TableHead>
+              <TableHead>Note</TableHead>
+              <TableHead>Created</TableHead>
+              {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {isLoading && (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                  Loading...
-                </td>
-              </tr>
+              <TableRow className="hover:bg-transparent">
+                <TableCell
+                  colSpan={isAdmin ? 5 : 4}
+                  className="px-4 py-8 text-center text-muted-foreground"
+                >
+                  Loading…
+                </TableCell>
+              </TableRow>
             )}
             {apiKeys?.map((key) => (
-              <tr key={key.id} className="border-b border-border/50">
-                <td className="px-4 py-3 font-mono text-xs">{key.publicKey}</td>
-                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+              <TableRow key={key.id} className="hover:bg-foreground/[0.03]">
+                <TableCell className="font-mono text-xs">{key.publicKey}</TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">
                   {key.displaySecretKey}
-                </td>
-                <td className="px-4 py-3">{key.note || "—"}</td>
-                <td className="px-4 py-3 text-muted-foreground">
+                </TableCell>
+                <TableCell>{key.note || "—"}</TableCell>
+                <TableCell className="text-muted-foreground">
                   {new Date(key.createdAt).toLocaleDateString()}
-                </td>
+                </TableCell>
                 {isAdmin && (
-                  <td className="px-4 py-3 text-right">
+                  <TableCell className="text-right">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-destructive hover:text-destructive"
+                      className="text-destructive hover:bg-destructive/10"
                       onClick={() => deleteMutation.mutate({ projectId, id: key.id })}
                     >
                       Delete
                     </Button>
-                  </td>
+                  </TableCell>
                 )}
-              </tr>
+              </TableRow>
             ))}
             {apiKeys?.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+              <TableRow className="hover:bg-transparent">
+                <TableCell
+                  colSpan={isAdmin ? 5 : 4}
+                  className="px-4 py-8 text-center text-muted-foreground"
+                >
                   No API keys. Create one to start sending traces.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+function KeyReveal({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="space-y-1.5">
+      <label className={SECTION_LABEL}>{label}</label>
+      <div className="flex items-center gap-2 rounded-md bg-muted/60 ring-1 ring-foreground/10 px-3 py-2">
+        <code className="text-xs font-mono break-all flex-1">{value}</code>
+        <CopyButton text={value} />
       </div>
     </div>
   );
@@ -230,9 +243,9 @@ function MembersTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-sm font-medium">Team Members</h2>
+          <h2 className="text-sm font-medium">Team members</h2>
           <p className="text-xs text-muted-foreground mt-1">
             Manage who has access to this project.
           </p>
@@ -240,7 +253,7 @@ function MembersTab() {
         {isAdmin && (
           <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
             <DialogTrigger render={<Button size="sm" className="gap-1.5" />}>
-              <UserPlus className="size-4" />
+              <UserPlus className="size-3.5" strokeWidth={1.5} />
               Invite members
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
@@ -248,29 +261,30 @@ function MembersTab() {
                 <DialogTitle>Invite team members</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <div>
-                  <label className="text-xs text-muted-foreground">Role</label>
+                <div className="space-y-1.5">
+                  <label className={SECTION_LABEL}>Role</label>
                   <select
                     value={inviteRole}
                     onChange={(e) => setInviteRole(e.target.value as "ADMIN" | "MEMBER" | "VIEWER")}
-                    className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
+                    className={SELECT_CLASS}
                   >
                     <option value="ADMIN">Admin</option>
                     <option value="MEMBER">Member</option>
                     <option value="VIEWER">Viewer</option>
                   </select>
                 </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">Email address</label>
+                <div className="space-y-1.5">
+                  <label className={SECTION_LABEL}>Email address</label>
                   <Input
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
                     placeholder="name@example.com"
                     type="email"
+                    className="h-9 text-[13px]"
                   />
                 </div>
                 {inviteMutation.error && (
-                  <p className="text-xs text-destructive">{inviteMutation.error.message}</p>
+                  <p className="text-xs text-error">{inviteMutation.error.message}</p>
                 )}
                 <div className="flex justify-end gap-2">
                   <Button variant="secondary" onClick={() => setInviteOpen(false)}>
@@ -286,7 +300,7 @@ function MembersTab() {
                     }
                     disabled={!inviteEmail || inviteMutation.isPending}
                   >
-                    {inviteMutation.isPending ? "Sending..." : "Send invitation"}
+                    {inviteMutation.isPending ? "Sending…" : "Send invitation"}
                   </Button>
                 </div>
               </div>
@@ -296,35 +310,40 @@ function MembersTab() {
       </div>
 
       {/* Members table */}
-      <div className="rounded-md border border-border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-muted-foreground">
-              <th className="px-4 py-3 text-left font-medium">Member</th>
-              <th className="px-4 py-3 text-left font-medium">Role</th>
-              <th className="px-4 py-3 text-left font-medium">Joined</th>
-              {isAdmin && <th className="px-4 py-3 text-right font-medium">Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
+      <div className="rounded-md border border-border overflow-hidden">
+        <Table density="tight">
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead>Member</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Joined</TableHead>
+              {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {isLoading && (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
-                  Loading...
-                </td>
-              </tr>
+              <TableRow className="hover:bg-transparent">
+                <TableCell
+                  colSpan={isAdmin ? 4 : 3}
+                  className="px-4 py-8 text-center text-muted-foreground"
+                >
+                  Loading…
+                </TableCell>
+              </TableRow>
             )}
             {members?.map((member) => (
-              <tr key={member.id} className="border-b border-border/50">
-                <td className="px-4 py-3">
+              <TableRow key={member.id} className="hover:bg-foreground/[0.03]">
+                <TableCell>
                   <div>
-                    <span className="font-medium">{member.name || member.email}</span>
+                    <span className="font-medium text-foreground">
+                      {member.name || member.email}
+                    </span>
                     {member.name && (
                       <span className="ml-2 text-xs text-muted-foreground">{member.email}</span>
                     )}
                   </div>
-                </td>
-                <td className="px-4 py-3">
+                </TableCell>
+                <TableCell>
                   {isAdmin && member.role !== "OWNER" ? (
                     <select
                       value={member.role}
@@ -335,7 +354,7 @@ function MembersTab() {
                           role: e.target.value as "OWNER" | "ADMIN" | "MEMBER" | "VIEWER",
                         })
                       }
-                      className="rounded border border-border bg-card px-2 py-1 text-xs"
+                      className={cn(SELECT_CLASS, "h-7 text-xs w-auto px-2")}
                     >
                       {role === "OWNER" && <option value="OWNER">Owner</option>}
                       <option value="ADMIN">Admin</option>
@@ -345,30 +364,30 @@ function MembersTab() {
                   ) : (
                     <RoleBadge role={member.role} />
                   )}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
+                </TableCell>
+                <TableCell className="text-muted-foreground">
                   {new Date(member.createdAt).toLocaleDateString()}
-                </td>
+                </TableCell>
                 {isAdmin && (
-                  <td className="px-4 py-3 text-right">
+                  <TableCell className="text-right">
                     {member.role !== "OWNER" && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-destructive hover:text-destructive"
+                        className="text-destructive hover:bg-destructive/10"
                         onClick={() => removeMutation.mutate({ projectId, userId: member.userId })}
                       >
                         Remove
                       </Button>
                     )}
-                  </td>
+                  </TableCell>
                 )}
-              </tr>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
         {members && (
-          <div className="px-4 py-2 text-xs text-muted-foreground border-t border-border">
+          <div className="px-4 py-2 text-[11px] text-muted-foreground border-t border-border">
             {members.length} member{members.length !== 1 ? "s" : ""}
           </div>
         )}
@@ -377,36 +396,36 @@ function MembersTab() {
       {/* Pending invitations */}
       {isAdmin && invitations && invitations.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-sm font-medium">Pending Invitations</h3>
-          <div className="rounded-md border border-border">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-muted-foreground">
-                  <th className="px-4 py-3 text-left font-medium">Email</th>
-                  <th className="px-4 py-3 text-left font-medium">Role</th>
-                  <th className="px-4 py-3 text-left font-medium">Invited by</th>
-                  <th className="px-4 py-3 text-left font-medium">Expires</th>
-                  <th className="px-4 py-3 text-right font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+          <h3 className={SECTION_LABEL}>Pending invitations</h3>
+          <div className="rounded-md border border-border overflow-hidden">
+            <Table density="tight">
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Invited by</TableHead>
+                  <TableHead>Expires</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {invitations.map((inv) => (
-                  <tr key={inv.id} className="border-b border-border/50">
-                    <td className="px-4 py-3">{inv.email}</td>
-                    <td className="px-4 py-3">
+                  <TableRow key={inv.id} className="hover:bg-foreground/[0.03]">
+                    <TableCell>{inv.email}</TableCell>
+                    <TableCell>
                       <RoleBadge role={inv.role} />
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
                       {inv.invitedBy.name || inv.invitedBy.email}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
                       {new Date(inv.expiresAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3 text-right">
+                    </TableCell>
+                    <TableCell className="text-right">
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-destructive hover:text-destructive"
+                        className="text-destructive hover:bg-destructive/10"
                         onClick={() =>
                           cancelInviteMutation.mutate({
                             projectId,
@@ -416,11 +435,11 @@ function MembersTab() {
                       >
                         Cancel
                       </Button>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </div>
       )}
@@ -455,20 +474,30 @@ function GeneralTab() {
   return (
     <div className="space-y-8">
       <div className="space-y-4">
-        <h2 className="text-sm font-medium">Project Details</h2>
+        <div>
+          <h2 className="text-sm font-medium">Project details</h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            Update the name and description shown across the dashboard.
+          </p>
+        </div>
         <div className="space-y-3 max-w-md">
-          <div>
-            <label className="text-xs text-muted-foreground">Project name</label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} disabled={!isAdmin} />
+          <div className="space-y-1.5">
+            <label className={SECTION_LABEL}>Project name</label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={!isAdmin}
+              className="h-9 text-[13px]"
+            />
           </div>
-          <div>
-            <label className="text-xs text-muted-foreground">Description</label>
+          <div className="space-y-1.5">
+            <label className={SECTION_LABEL}>Description</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={!isAdmin}
               rows={3}
-              className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm resize-none"
+              className="w-full rounded-md border border-input bg-input/20 dark:bg-input/30 px-3 py-2 text-[13px] text-foreground transition-colors duration-150 outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 resize-none disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Optional project description"
             />
           </div>
@@ -478,7 +507,7 @@ function GeneralTab() {
               onClick={() => updateMutation.mutate({ projectId, name, description })}
               disabled={updateMutation.isPending}
             >
-              {updateMutation.isPending ? "Saving..." : "Save changes"}
+              {updateMutation.isPending ? "Saving…" : "Save changes"}
             </Button>
           )}
         </div>
@@ -486,12 +515,14 @@ function GeneralTab() {
 
       {/* Danger zone */}
       {isOwner && (
-        <div className="space-y-3 border-t border-border pt-6">
-          <h2 className="text-sm font-medium text-destructive">Danger Zone</h2>
-          <p className="text-xs text-muted-foreground">
-            Deleting this project will permanently remove all traces, observations, API keys, and
-            team memberships. This cannot be undone.
-          </p>
+        <div className="rounded-md border border-error/30 bg-error/5 p-4 space-y-3">
+          <div>
+            <h2 className="text-sm font-medium text-error">Danger zone</h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              Deleting this project permanently removes all traces, observations, API keys, and team
+              memberships. This cannot be undone.
+            </p>
+          </div>
           <Button
             variant="destructive"
             size="sm"
@@ -502,7 +533,7 @@ function GeneralTab() {
             }}
             disabled={deleteMutation.isPending}
           >
-            {deleteMutation.isPending ? "Deleting..." : "Delete project"}
+            {deleteMutation.isPending ? "Deleting…" : "Delete project"}
           </Button>
         </div>
       )}

@@ -4,20 +4,37 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+type Density = "default" | "tight";
+
+function Table({
+  className,
+  density = "default",
+  ...props
+}: React.ComponentProps<"table"> & { density?: Density }) {
   return (
     <div data-slot="table-container" className="relative w-full overflow-x-auto">
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-xs", className)}
+        data-density={density}
+        className={cn("group/table w-full caption-bottom text-xs", className)}
         {...props}
       />
     </div>
   );
 }
 
-function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
-  return <thead data-slot="table-header" className={cn("[&_tr]:border-b", className)} {...props} />;
+function TableHeader({
+  className,
+  sticky = false,
+  ...props
+}: React.ComponentProps<"thead"> & { sticky?: boolean }) {
+  return (
+    <thead
+      data-slot="table-header"
+      className={cn("[&_tr]:border-b", sticky && "sticky top-0 z-10 bg-card", className)}
+      {...props}
+    />
+  );
 }
 
 function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
@@ -45,7 +62,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+        "border-b border-border/50 transition-colors duration-100 hover:bg-foreground/[0.03] has-aria-expanded:bg-foreground/[0.05] data-[state=selected]:bg-foreground/[0.05]",
         className,
       )}
       {...props}
@@ -58,7 +75,11 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        "text-left align-middle whitespace-nowrap font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+        // default density
+        "h-10 px-3 text-xs",
+        // tight density (group-data-[density=tight]/table)
+        "group-data-[density=tight]/table:h-8 group-data-[density=tight]/table:px-3 group-data-[density=tight]/table:text-[11px] group-data-[density=tight]/table:uppercase group-data-[density=tight]/table:tracking-wider",
         className,
       )}
       {...props}
@@ -70,7 +91,14 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
   return (
     <td
       data-slot="table-cell"
-      className={cn("p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0", className)}
+      className={cn(
+        "align-middle whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        // default density
+        "p-3",
+        // tight density
+        "group-data-[density=tight]/table:px-3 group-data-[density=tight]/table:py-2",
+        className,
+      )}
       {...props}
     />
   );

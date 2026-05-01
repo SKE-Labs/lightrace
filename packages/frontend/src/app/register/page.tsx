@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -61,72 +62,77 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <img src="/lr_primary.svg" alt="LightRace" className="mx-auto h-12 w-auto dark:hidden" />
-          <img
-            src="/lr_white.svg"
-            alt="LightRace"
-            className="mx-auto h-12 w-auto hidden dark:block"
-          />
-          <p className="mt-4 text-sm text-muted-foreground">Create your account</p>
+    <div className="flex min-h-screen items-center justify-center bg-background px-5">
+      <div className="w-full max-w-[340px] flex flex-col gap-6">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <img src="/lr_primary.svg" alt="LightRace" className="h-11 w-auto dark:hidden" />
+          <img src="/lr_white.svg" alt="LightRace" className="h-11 w-auto hidden dark:block" />
+          <p className="text-[13px] text-muted-foreground">Create your account</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-sm text-muted-foreground">Name</label>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-muted-foreground">Name</label>
             <Input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Your name"
+              className="h-9 text-[13px]"
               required
             />
           </div>
-          <div>
-            <label className="text-sm text-muted-foreground">Email</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-muted-foreground">Email</label>
             <Input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
+              className="h-9 text-[13px]"
               required
             />
           </div>
-          <div>
-            <label className="text-sm text-muted-foreground">Password</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-muted-foreground">Password</label>
             <Input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Min 6 characters"
+              className="h-9 text-[13px]"
               required
               minLength={6}
             />
           </div>
-          <div>
-            <label className="text-sm text-muted-foreground">Confirm password</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-muted-foreground">Confirm password</label>
             <Input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Confirm password"
+              className="h-9 text-[13px]"
               required
               minLength={6}
             />
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Creating account..." : "Create account"}
+          {error && <p className="text-xs text-error">{error}</p>}
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full mt-1 h-9 text-[13px]"
+            disabled={loading}
+          >
+            {loading ? "Creating account…" : "Create account"}
           </Button>
         </form>
 
-        <p className="text-center text-xs text-muted-foreground">
+        <p className="text-center text-[11px] text-muted-foreground">
           Already have an account?{" "}
-          <a href="/login" className="text-primary hover:underline">
+          <Link href="/login" className="text-foreground/70 hover:text-foreground hover:underline">
             Sign in
-          </a>
+          </Link>
         </p>
       </div>
     </div>

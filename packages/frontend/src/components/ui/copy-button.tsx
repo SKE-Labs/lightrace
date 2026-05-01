@@ -15,10 +15,18 @@ export function CopyButton({ text, className }: { text: string; className?: stri
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       }}
-      className={cn("transition-colors shrink-0", className)}
-      title="Copy to clipboard"
+      className={cn(
+        "transition-colors duration-150 shrink-0 text-muted-foreground hover:text-foreground",
+        copied && "text-success",
+        className,
+      )}
+      title={copied ? "Copied" : "Copy to clipboard"}
     >
-      {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+      {copied ? (
+        <Check className="size-3.5" strokeWidth={1.5} />
+      ) : (
+        <Copy className="size-3.5" strokeWidth={1.5} />
+      )}
     </button>
   );
 }

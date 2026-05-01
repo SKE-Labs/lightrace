@@ -53,6 +53,9 @@
   --color-error: var(--error);
   --color-info: var(--info);
 
+  /* Subtle tints */
+  --color-row-fork: var(--row-fork);
+
   /* Syntax highlighting */
   --color-syntax-string: var(--syntax-string);
   --color-syntax-number: var(--syntax-number);
@@ -64,36 +67,42 @@
 
 /* ─── Light Mode ─────────────────────────────────────────────── */
 :root {
+  /* Warm-white page bg with subtle 285° hue hint — cards stay pure white for contrast */
+  --background: oklch(0.985 0.002 285);
+  --foreground: oklch(0.14 0.004 285);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.14 0.004 285);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.14 0.004 285);
+
+  /* Brand blue — used sparingly on primary CTAs, focus rings, active nav tint */
+  --primary: oklch(0.55 0.22 264);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+
+  --secondary: oklch(0.955 0.003 285);
+  --secondary-foreground: oklch(0.2 0.004 285);
+  --muted: oklch(0.955 0.003 285);
+  --muted-foreground: oklch(0.45 0 0);
+  --accent: oklch(0.94 0.003 285);
+  --accent-foreground: oklch(0.2 0.004 285);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --ring: oklch(0.55 0.22 264);
   --chart-1: oklch(0.7 0.17 250);
   --chart-2: oklch(0.72 0.19 145);
   --chart-3: oklch(0.75 0.14 55);
   --chart-4: oklch(0.65 0.18 320);
   --chart-5: oklch(0.68 0.15 190);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.14 0.004 285);
+  --sidebar-primary: oklch(0.55 0.22 264);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-accent: oklch(0.94 0.003 285);
+  --sidebar-accent-foreground: oklch(0.2 0.004 285);
   --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-ring: oklch(0.55 0.22 264);
 
   /* Status */
   --success: oklch(0.52 0.17 145);
@@ -107,8 +116,18 @@
   --syntax-boolean: oklch(0.55 0.12 55);
   --syntax-null: oklch(0.5 0.08 55);
   --syntax-key: oklch(0.45 0.15 300);
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+
+  /* Shadows */
+  --shadow-1: 0 1px 3px oklch(0 0 0 / 8%), 0 1px 2px oklch(0 0 0 / 4%);
+  --shadow-2: 0 4px 16px oklch(0 0 0 / 10%);
+  --shadow-3: 0 8px 32px oklch(0 0 0 / 12%);
+
+  /* Gradients */
+  --gradient-brand: linear-gradient(135deg, oklch(0.62 0.2 240), oklch(0.55 0.22 264));
+  --gradient-surface: radial-gradient(ellipse at top, oklch(0.97 0.003 285), oklch(1 0 0));
+
+  /* Tinted row bg that works in both modes — used for nested fork rows */
+  --row-fork: oklch(0 0 0 / 4%);
 }
 
 /* ─── Dark Mode (Primary) ───────────────────────────────────── */
@@ -119,8 +138,11 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
+
+  /* Brand blue — same hue, slightly brighter for legibility on dark surfaces */
+  --primary: oklch(0.55 0.22 264);
+  --primary-foreground: oklch(0.985 0 0);
+
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -130,7 +152,7 @@
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --ring: oklch(0.55 0.22 264);
   --chart-1: oklch(0.7 0.17 250);
   --chart-2: oklch(0.72 0.19 145);
   --chart-3: oklch(0.75 0.14 55);
@@ -138,12 +160,12 @@
   --chart-5: oklch(0.68 0.15 190);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary: oklch(0.55 0.22 264);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: oklch(0.55 0.22 264);
 
   /* Status */
   --success: oklch(0.72 0.19 145);
@@ -157,6 +179,18 @@
   --syntax-boolean: oklch(0.75 0.14 55);
   --syntax-null: oklch(0.68 0.1 55);
   --syntax-key: oklch(0.7 0.16 300);
+
+  /* Shadows — minimal on dark; elevation via luminance */
+  --shadow-1: 0 1px 2px oklch(0 0 0 / 40%);
+  --shadow-2: 0 4px 12px oklch(0 0 0 / 50%);
+  --shadow-3: 0 8px 30px oklch(0 0 0 / 60%);
+
+  /* Gradients */
+  --gradient-brand: linear-gradient(135deg, oklch(0.62 0.2 240), oklch(0.55 0.22 264));
+  --gradient-surface: radial-gradient(ellipse at top, oklch(0.16 0.008 285), oklch(0.13 0.004 285));
+
+  /* Tinted row bg that works in both modes — used for nested fork rows */
+  --row-fork: oklch(1 0 0 / 4%);
 }
 
 @layer base {
@@ -173,5 +207,72 @@
   h2,
   h3 {
     letter-spacing: -0.01em;
+  }
+}
+
+/* ─── Glassmorphism (sticky header) ─────────────────────────── */
+@layer components {
+  .glass {
+    background: oklch(1 0 0 / 80%);
+    backdrop-filter: blur(16px) saturate(1.2);
+    border-bottom: 1px solid oklch(0 0 0 / 6%);
+  }
+  .dark .glass {
+    background: oklch(0.145 0 0 / 70%);
+    backdrop-filter: blur(16px) saturate(1.5);
+    border-bottom: 1px solid oklch(1 0 0 / 6%);
+  }
+
+  /* ── Trace tree connector lines ─────────────────────────── */
+  .tree-guide {
+    position: relative;
+    width: 16px;
+    height: 28px;
+    flex-shrink: 0;
+  }
+  .tree-guide-v::before {
+    content: "";
+    position: absolute;
+    left: 7px;
+    top: 0;
+    height: 100%;
+    width: 1px;
+    background: var(--border);
+  }
+  .tree-guide-t::before {
+    content: "";
+    position: absolute;
+    left: 7px;
+    top: 0;
+    height: 100%;
+    width: 1px;
+    background: var(--border);
+  }
+  .tree-guide-t::after {
+    content: "";
+    position: absolute;
+    left: 7px;
+    top: 50%;
+    height: 1px;
+    right: -1px;
+    background: var(--border);
+  }
+  .tree-guide-l::before {
+    content: "";
+    position: absolute;
+    left: 7px;
+    top: 0;
+    height: 50%;
+    width: 1px;
+    background: var(--border);
+  }
+  .tree-guide-l::after {
+    content: "";
+    position: absolute;
+    left: 7px;
+    top: 50%;
+    height: 1px;
+    right: -1px;
+    background: var(--border);
   }
 }

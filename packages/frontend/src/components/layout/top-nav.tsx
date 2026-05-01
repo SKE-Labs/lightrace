@@ -35,7 +35,7 @@ export function TopNav({ projectId, breadcrumbs }: TopNavProps) {
   const currentProject = projects?.find((p) => p.id === projectId);
 
   return (
-    <header className="flex h-12 shrink-0 items-center border-b border-border bg-card px-4">
+    <header className="glass sticky top-0 z-30 flex h-12 shrink-0 items-center px-4">
       {/* Left: Logo + breadcrumb */}
       <div className="flex items-center gap-2">
         <Link href="/projects" className="flex items-center hover:opacity-80 transition-opacity">
@@ -45,14 +45,16 @@ export function TopNav({ projectId, breadcrumbs }: TopNavProps) {
 
         {projectId && (
           <>
-            <span className="text-muted-foreground/40 text-lg font-light select-none">/</span>
+            <span className="text-muted-foreground/40 text-lg font-light select-none leading-none">
+              /
+            </span>
             <DropdownMenu>
-              <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium hover:bg-accent/10 transition-colors">
-                <Box className="size-3.5 text-muted-foreground" />
+              <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium hover:bg-foreground/[0.05] transition-colors duration-150">
+                <Box className="size-3.5 text-muted-foreground" strokeWidth={1.5} />
                 <span className="max-w-[200px] truncate">
                   {currentProject?.name ?? "Loading..."}
                 </span>
-                <ChevronDown className="size-3.5 text-muted-foreground" />
+                <ChevronDown className="size-3.5 text-muted-foreground" strokeWidth={1.5} />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
                 <DropdownMenuGroup>
@@ -61,20 +63,20 @@ export function TopNav({ projectId, breadcrumbs }: TopNavProps) {
                     <DropdownMenuItem
                       key={p.id}
                       onClick={() => router.push(`/project/${p.id}/traces`)}
-                      className={cn(p.id === projectId && "bg-accent/50")}
+                      className={cn(p.id === projectId && "bg-primary/10 text-foreground")}
                     >
-                      <Box className="size-4" />
+                      <Box className="size-4" strokeWidth={1.5} />
                       <span className="truncate">{p.name}</span>
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push("/projects")}>
-                  <ListTree className="size-4" />
+                  <ListTree className="size-4" strokeWidth={1.5} />
                   View all projects
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => router.push("/projects/new")}>
-                  <Plus className="size-4" />
+                  <Plus className="size-4" strokeWidth={1.5} />
                   New project
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -84,11 +86,13 @@ export function TopNav({ projectId, breadcrumbs }: TopNavProps) {
 
         {breadcrumbs?.map((crumb, i) => (
           <span key={i} className="flex items-center gap-2">
-            <span className="text-muted-foreground/40 text-lg font-light select-none">/</span>
+            <span className="text-muted-foreground/40 text-lg font-light select-none leading-none">
+              /
+            </span>
             {crumb.href ? (
               <Link
                 href={crumb.href}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-150"
               >
                 {crumb.label}
               </Link>
@@ -100,18 +104,18 @@ export function TopNav({ projectId, breadcrumbs }: TopNavProps) {
       </div>
 
       {/* Right: Theme + User */}
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-1">
         <ThemeToggle />
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center justify-center size-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/10 transition-colors">
-            <User className="size-4" />
+          <DropdownMenuTrigger className="flex items-center justify-center size-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] transition-colors duration-150">
+            <User className="size-4" strokeWidth={1.5} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-40">
             <DropdownMenuItem
               onClick={() => signOut({ callbackUrl: "/login" })}
               variant="destructive"
             >
-              <LogOut className="size-4" />
+              <LogOut className="size-4" strokeWidth={1.5} />
               Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>

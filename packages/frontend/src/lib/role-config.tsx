@@ -5,9 +5,13 @@ export const roleConfig = {
   OWNER: {
     icon: Crown,
     label: "Owner",
-    color: "bg-purple-500/15 text-purple-400 border-purple-500/30",
+    color: "bg-primary/15 text-primary border-primary/30",
   },
-  ADMIN: { icon: Shield, label: "Admin", color: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  ADMIN: {
+    icon: Shield,
+    label: "Admin",
+    color: "bg-info/15 text-info border-info/30",
+  },
   MEMBER: { icon: User, label: "Member", color: "bg-muted text-muted-foreground" },
   VIEWER: { icon: Eye, label: "Viewer", color: "bg-muted text-muted-foreground" },
 } as const;
@@ -17,7 +21,7 @@ export function RoleBadge({ role }: { role: string }) {
   const Icon = config.icon;
   return (
     <Badge variant="outline" className={`text-xs gap-1 ${config.color}`}>
-      <Icon className="size-3" />
+      <Icon className="size-3" strokeWidth={1.5} />
       {config.label}
     </Badge>
   );

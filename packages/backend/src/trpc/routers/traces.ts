@@ -1,5 +1,52 @@
 import { z } from "zod";
+import type { ObservationLevel } from "@prisma/client";
 import { router, projectProcedure, projectAdminProcedure } from "../context";
+
+const traceItemSelect = {
+  id: true,
+  name: true,
+  timestamp: true,
+  tags: true,
+  totalTokens: true,
+  totalCost: true,
+  latencyMs: true,
+  primaryModel: true,
+  observationCount: true,
+  level: true,
+  isFork: true,
+} as const;
+
+type RawTrace = {
+  id: string;
+  name: string | null;
+  timestamp: Date;
+  tags: string[];
+  totalTokens: number;
+  totalCost: number | null;
+  latencyMs: number | null;
+  primaryModel: string | null;
+  observationCount: number;
+  level: ObservationLevel;
+  isFork: boolean;
+};
+
+function shapeTraceItem(trace: RawTrace, forkCount: number) {
+  return {
+    id: trace.id,
+    name: trace.name,
+    timestamp: trace.timestamp,
+    tags: trace.tags,
+    observationCount: trace.observationCount,
+    totalTokens: trace.totalTokens,
+    totalCost: trace.totalCost && trace.totalCost > 0 ? trace.totalCost : null,
+    latencyMs: trace.latencyMs ?? 0,
+    hasError: trace.level === "ERROR",
+    hasWarning: trace.level === "WARNING",
+    primaryModel: trace.primaryModel,
+    isFork: trace.isFork,
+    forkCount,
+  };
+}
 
 export const tracesRouter = router({
   list: projectProcedure
@@ -15,65 +62,42 @@ export const tracesRouter = router({
       const { limit, page, search } = input;
       const skip = (page - 1) * limit;
 
+      // Root traces only — forks are nested under their parent below.
       const where = {
         projectId: ctx.projectId,
+        isFork: false,
         ...(search ? { name: { contains: search, mode: "insensitive" as const } } : {}),
       };
 
-      const [traces, totalCount] = await Promise.all([
+      const [parents, totalCount] = await Promise.all([
         ctx.db.trace.findMany({
           take: limit,
           skip,
           orderBy: { timestamp: "desc" },
           where,
           select: {
-            id: true,
-            name: true,
-            timestamp: true,
-            tags: true,
-            totalTokens: true,
-            totalCost: true,
-            latencyMs: true,
-            primaryModel: true,
-            observationCount: true,
-            level: true,
-            isFork: true,
+            ...traceItemSelect,
+            // Cap nested forks: the UI only shows them inline; deeper exploration
+            // happens on the trace detail page.
+            sourceForks: {
+              take: 10,
+              orderBy: { createdAt: "desc" },
+              select: {
+                forkedTrace: { select: traceItemSelect },
+              },
+            },
           },
         }),
         ctx.db.trace.count({ where }),
       ]);
 
-      // Batch-load fork status for the page of traces
-      const traceIds = traces.map((t) => t.id);
-      const forkRecords =
-        traceIds.length > 0
-          ? await ctx.db.traceFork.findMany({
-              where: { sourceTraceId: { in: traceIds } },
-              select: { sourceTraceId: true },
-            })
-          : [];
-
-      // Build fork count map: sourceTraceId → number of forks
-      const forkCountMap = new Map<string, number>();
-      for (const r of forkRecords) {
-        forkCountMap.set(r.sourceTraceId, (forkCountMap.get(r.sourceTraceId) ?? 0) + 1);
-      }
-
-      const items = traces.map((trace) => ({
-        id: trace.id,
-        name: trace.name,
-        timestamp: trace.timestamp,
-        tags: trace.tags,
-        observationCount: trace.observationCount,
-        totalTokens: trace.totalTokens,
-        totalCost: trace.totalCost && trace.totalCost > 0 ? trace.totalCost : null,
-        latencyMs: trace.latencyMs ?? 0,
-        hasError: trace.level === "ERROR",
-        hasWarning: trace.level === "WARNING",
-        primaryModel: trace.primaryModel,
-        isFork: trace.isFork,
-        forkCount: forkCountMap.get(trace.id) ?? 0,
-      }));
+      const items = parents.map((parent) => {
+        const forks = parent.sourceForks.map((sf) => shapeTraceItem(sf.forkedTrace, 0));
+        return {
+          ...shapeTraceItem(parent, forks.length),
+          forks,
+        };
+      });
 
       return {
         items,

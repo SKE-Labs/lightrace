@@ -34,15 +34,15 @@ export function Sidebar({ projectId }: SidebarProps) {
                   <Link
                     href={item.href}
                     className={cn(
-                      "flex items-center justify-center size-9 rounded-md transition-colors",
+                      "flex items-center justify-center size-9 rounded-md transition-colors duration-150",
                       isActive
-                        ? "bg-accent/15 text-foreground"
-                        : "text-muted-foreground hover:bg-accent/10 hover:text-foreground",
+                        ? "bg-foreground/[0.07] text-foreground"
+                        : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground/80",
                     )}
                   />
                 }
               >
-                <Icon className="size-4" />
+                <Icon className="size-4" strokeWidth={1.5} />
               </TooltipTrigger>
               <TooltipContent side="right">{item.label}</TooltipContent>
             </Tooltip>
