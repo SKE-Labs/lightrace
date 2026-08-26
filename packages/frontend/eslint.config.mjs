@@ -12,6 +12,11 @@ const eslintConfig = [
   {
     ignores: ["src/features/ingestion/otel/proto/**"],
   },
+  {
+    rules: {
+      "@next/next/no-html-link-for-pages": "off",
+    },
+  },
 ];
 
 export default eslintConfig;

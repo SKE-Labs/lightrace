@@ -235,9 +235,7 @@ describe("processOtelResourceSpans", () => {
   // ── Level and status ───────────────────────────────────────────────
 
   describe("level and status", () => {
-    it("defaults to DEFAULT level when no explicit level and status code 2 (parseLevel returns DEFAULT, not null)", async () => {
-      // Note: span.status.code === 2 fallback is unreachable because parseLevel always returns a value.
-      // This test documents the actual behavior.
+    it("defaults to ERROR level when no explicit level but status code 2", async () => {
       const project = await createTestProject();
       await processOtelResourceSpans(
         [
@@ -251,7 +249,7 @@ describe("processOtelResourceSpans", () => {
       );
 
       const obs = await db.observation.findUnique({ where: { id: "cc11" } });
-      expect(obs!.level).toBe("DEFAULT");
+      expect(obs!.level).toBe("ERROR");
       expect(obs!.statusMessage).toBe("something failed");
     });
 

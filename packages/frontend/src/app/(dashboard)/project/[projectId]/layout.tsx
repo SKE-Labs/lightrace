@@ -25,6 +25,7 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
 
     const pageLabels: Record<string, string> = {
       traces: "Traces",
+      errors: "Errors",
       tools: "Tools",
       settings: "Settings",
     };

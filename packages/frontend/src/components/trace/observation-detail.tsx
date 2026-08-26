@@ -381,14 +381,40 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
         </div>
 
         {/* Error banner */}
-        {observation.level === "ERROR" && observation.statusMessage && (
+        {observation.level === "ERROR" && (observation.statusMessage || observation.errorType) && (
           <Alert variant="destructive" className="mx-4 my-2">
             <XCircle className="size-4" strokeWidth={1.5} />
             <AlertDescription className="whitespace-pre-wrap wrap-break-word font-mono leading-relaxed">
-              {observation.statusMessage}
+              {observation.errorType && (
+                <span className="font-semibold">{observation.errorType}: </span>
+              )}
+              {observation.statusMessage || observation.errorType}
+              {observation.errorHandled !== null && observation.errorHandled !== undefined && (
+                <Badge
+                  variant={observation.errorHandled ? "secondary" : "error"}
+                  className="ml-2 text-[10px]"
+                >
+                  {observation.errorHandled ? "handled" : "unhandled"}
+                </Badge>
+              )}
             </AlertDescription>
-            <CopyButton text={observation.statusMessage} className="absolute top-1.5 right-2" />
+            <CopyButton
+              text={observation.statusMessage || observation.errorType || ""}
+              className="absolute top-1.5 right-2"
+            />
           </Alert>
+        )}
+        {/* Error stacktrace */}
+        {observation.errorStacktrace && (
+          <div className="mx-4 my-2 rounded-md border border-error/30 bg-error/5 p-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-error">Stacktrace</span>
+              <CopyButton text={observation.errorStacktrace} />
+            </div>
+            <pre className="whitespace-pre-wrap wrap-break-word font-mono text-xs leading-relaxed max-h-64 overflow-auto">
+              {observation.errorStacktrace}
+            </pre>
+          </div>
         )}
 
         {/* Section nav */}
@@ -430,6 +456,12 @@ function ObservationDetailPanel({ observation }: { observation: Observation }) {
               )}
               {observation.statusMessage && (
                 <MetadataRow label="Status" value={observation.statusMessage} />
+              )}
+              {observation.errorType && (
+                <MetadataRow label="Error Type" value={observation.errorType} mono />
+              )}
+              {observation.errorHandled !== null && observation.errorHandled !== undefined && (
+                <MetadataRow label="Handled" value={String(observation.errorHandled)} />
               )}
               {observation.version && <MetadataRow label="Version" value={observation.version} />}
               {observation.modelParameters && (

@@ -64,6 +64,9 @@ export enum LightraceOtelSpanAttributes {
   OBSERVATION_MODEL_PARAMETERS = "lightrace.observation.model_parameters",
   OBSERVATION_USAGE_DETAILS = "lightrace.observation.usage_details",
   OBSERVATION_COST_DETAILS = "lightrace.observation.cost_details",
+  OBSERVATION_ERROR_TYPE = "lightrace.observation.error_type",
+  OBSERVATION_ERROR_STACKTRACE = "lightrace.observation.error_stacktrace",
+  OBSERVATION_ERROR_HANDLED = "lightrace.observation.error_handled",
 
   RELEASE = "lightrace.release",
   VERSION = "lightrace.version",

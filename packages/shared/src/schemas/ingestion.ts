@@ -43,6 +43,9 @@ const observationBase = z.object({
   output: z.any().optional(),
   level: z.enum(["DEBUG", "DEFAULT", "WARNING", "ERROR"]).optional(),
   statusMessage: z.string().nullish(),
+  errorType: z.string().nullish(),
+  errorStacktrace: z.string().nullish(),
+  errorHandled: z.boolean().nullish(),
   parentObservationId: z.string().nullish(),
   version: z.string().nullish(),
 });

@@ -6,6 +6,7 @@ import {
 } from "@lightrace/shared/schemas/ingestion";
 import { ObservationType, ObservationLevel, Prisma } from "@prisma/client";
 import { updateTraceAggregates } from "./updateTraceAggregates";
+import { upsertErrorIssue } from "./errorIngestion";
 
 type TxClient = Prisma.TransactionClient;
 
@@ -108,6 +109,12 @@ async function processObservation(
     if (body.metadata !== undefined) updateData.metadata = body.metadata;
     if (body.level !== undefined) updateData.level = parseLevel(body.level as string);
     if (body.statusMessage !== undefined) updateData.statusMessage = body.statusMessage;
+    if (body.errorType !== undefined) updateData.errorType = body.errorType;
+    if (body.errorStacktrace !== undefined)
+      updateData.errorStacktrace = body.errorStacktrace
+        ? String(body.errorStacktrace).slice(0, 8000)
+        : null;
+    if (body.errorHandled !== undefined) updateData.errorHandled = body.errorHandled;
     if (body.parentObservationId !== undefined)
       updateData.parentObservationId = body.parentObservationId;
     if (body.version !== undefined) updateData.version = body.version;
@@ -143,6 +150,11 @@ async function processObservation(
         metadata: body.metadata ?? undefined,
         level: parseLevel(body.level as string),
         statusMessage: (body.statusMessage as string) ?? null,
+        errorType: (body.errorType as string) ?? null,
+        errorStacktrace: (body.errorStacktrace as string)
+          ? String(body.errorStacktrace).slice(0, 8000)
+          : null,
+        errorHandled: (body.errorHandled as boolean) ?? null,
         parentObservationId: (body.parentObservationId as string) ?? null,
         version: (body.version as string) ?? null,
         model: (body.model as string) ?? null,
@@ -173,6 +185,11 @@ async function processObservation(
         metadata: body.metadata ?? undefined,
         level: parseLevel(body.level as string),
         statusMessage: (body.statusMessage as string) ?? null,
+        errorType: (body.errorType as string) ?? null,
+        errorStacktrace: (body.errorStacktrace as string)
+          ? String(body.errorStacktrace).slice(0, 8000)
+          : null,
+        errorHandled: (body.errorHandled as boolean) ?? null,
         parentObservationId: (body.parentObservationId as string) ?? null,
         version: (body.version as string) ?? null,
         model: (body.model as string) ?? null,
@@ -198,6 +215,11 @@ async function processObservation(
         metadata: body.metadata ?? undefined,
         level: parseLevel(body.level as string),
         statusMessage: (body.statusMessage as string) ?? undefined,
+        errorType: (body.errorType as string) ?? undefined,
+        errorStacktrace: (body.errorStacktrace as string)
+          ? String(body.errorStacktrace).slice(0, 8000)
+          : undefined,
+        errorHandled: (body.errorHandled as boolean) ?? undefined,
         parentObservationId: (body.parentObservationId as string) ?? undefined,
         version: (body.version as string) ?? undefined,
         model: (body.model as string) ?? undefined,
@@ -218,6 +240,51 @@ async function processObservation(
 
   // Update denormalized aggregates on the parent trace
   await updateTraceAggregates(tx, traceId);
+
+  // If observation is an error, create/update ErrorIssue/ErrorEvent (any type)
+  // Fetch the persisted observation to get actual fields (handles partial updates)
+  try {
+    const persisted = await tx.observation.findUnique({
+      where: { id: observationId },
+      select: {
+        type: true,
+        name: true,
+        model: true,
+        statusMessage: true,
+        level: true,
+        startTime: true,
+        errorType: true,
+        errorStacktrace: true,
+        errorHandled: true,
+      },
+    });
+    if (persisted && persisted.level === ObservationLevel.ERROR) {
+      const eventTimestamp = event.timestamp
+        ? parseDate(event.timestamp as string)
+        : (persisted.startTime ?? new Date());
+      await upsertErrorIssue(tx, {
+        projectId,
+        traceId,
+        observationId,
+        type: persisted.type,
+        name: persisted.name,
+        model: persisted.model,
+        statusMessage: persisted.statusMessage,
+        level: persisted.level,
+        timestamp: eventTimestamp,
+        errorType: persisted.errorType,
+        stacktrace: persisted.errorStacktrace,
+        handled: persisted.errorHandled,
+      });
+    }
+  } catch (e) {
+    // Log but don't fail ingestion if error grouping fails
+    console.error(
+      "[ingestion] error grouping failed for",
+      observationId,
+      e instanceof Error ? e.message : e,
+    );
+  }
 }
 
 export async function processEventBatch(

@@ -47,6 +47,8 @@ const { db } = await import("@lightrace/shared/db");
 afterEach(async () => {
   await db.$executeRawUnsafe(`
     TRUNCATE TABLE
+      error_events,
+      error_issues,
       trace_forks,
       observations,
       traces,

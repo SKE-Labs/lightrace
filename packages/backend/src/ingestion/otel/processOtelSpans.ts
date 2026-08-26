@@ -1,6 +1,7 @@
 import { db } from "@lightrace/shared/db";
 import { ObservationType, ObservationLevel, Prisma } from "@prisma/client";
 import { updateTraceAggregates } from "../updateTraceAggregates";
+import { upsertErrorIssue } from "../errorIngestion";
 
 type TxClient = Prisma.TransactionClient;
 import { LangfuseOtelSpanAttributes, LightraceOtelSpanAttributes } from "./attributes";
@@ -503,11 +504,31 @@ async function processSpan(
   const type = extractObservationType(attrs);
   const usage = extractUsageDetails(attrs);
   const costs = extractCostDetails(attrs);
-  const level =
-    parseLevel(
-      attrs[LightraceOtelSpanAttributes.OBSERVATION_LEVEL] ??
-        attrs[LangfuseOtelSpanAttributes.OBSERVATION_LEVEL],
-    ) ?? (span.status?.code === 2 ? ObservationLevel.ERROR : ObservationLevel.DEFAULT);
+  const rawLevel =
+    attrs[LightraceOtelSpanAttributes.OBSERVATION_LEVEL] ??
+    attrs[LangfuseOtelSpanAttributes.OBSERVATION_LEVEL];
+  const level = rawLevel
+    ? parseLevel(rawLevel as string)
+    : span.status?.code === 2
+      ? ObservationLevel.ERROR
+      : ObservationLevel.DEFAULT;
+
+  // Extract new error attributes (SDK sends these for enriched error grouping)
+  const rawHandled =
+    (attrs[LightraceOtelSpanAttributes.OBSERVATION_ERROR_HANDLED] as
+      | string
+      | boolean
+      | undefined) ??
+    (attrs["lightrace.observation.error_handled"] as string | boolean | undefined);
+  let parsedHandled: boolean | null = null;
+  if (rawHandled !== undefined && rawHandled !== null && rawHandled !== "") {
+    if (typeof rawHandled === "boolean") parsedHandled = rawHandled;
+    else if (typeof rawHandled === "string") {
+      const lower = rawHandled.toLowerCase();
+      if (lower === "true") parsedHandled = true;
+      else if (lower === "false") parsedHandled = false;
+    }
+  }
 
   const observationData = {
     traceId,
@@ -540,6 +561,15 @@ async function processSpan(
       (attrs[LangfuseOtelSpanAttributes.OBSERVATION_STATUS_MESSAGE] as string) ??
       span.status?.message ??
       null,
+    errorType:
+      (attrs[LightraceOtelSpanAttributes.OBSERVATION_ERROR_TYPE] as string) ??
+      (attrs["lightrace.observation.error_type"] as string) ??
+      null,
+    errorStacktrace:
+      (attrs[LightraceOtelSpanAttributes.OBSERVATION_ERROR_STACKTRACE] as string) ??
+      (attrs["lightrace.observation.error_stacktrace"] as string) ??
+      null,
+    errorHandled: parsedHandled,
     completionStartTime: extractCompletionStartTime(attrs),
     promptTokens: usage.promptTokens,
     completionTokens: usage.completionTokens,
@@ -562,4 +592,35 @@ async function processSpan(
 
   // Update denormalized aggregates on the parent trace
   await updateTraceAggregates(tx, traceId);
+
+  // If observation is an error (any type), create/update ErrorIssue
+  if (level === ObservationLevel.ERROR) {
+    try {
+      const obsTimestamp = observationData.startTime ?? new Date();
+      await upsertErrorIssue(tx, {
+        projectId,
+        traceId,
+        observationId: spanId,
+        type,
+        name: observationData.name ?? span.name ?? null,
+        model: observationData.model ?? null,
+        statusMessage: observationData.statusMessage ?? null,
+        level,
+        timestamp: obsTimestamp,
+        errorType:
+          ((observationData as unknown as Record<string, unknown>).errorType as string | null) ??
+          null,
+        stacktrace:
+          ((observationData as unknown as Record<string, unknown>).errorStacktrace as
+            | string
+            | null) ?? null,
+        handled:
+          ((observationData as unknown as Record<string, unknown>).errorHandled as
+            | boolean
+            | null) ?? null,
+      });
+    } catch (e) {
+      console.error("[otel] error grouping failed for", spanId, e instanceof Error ? e.message : e);
+    }
+  }
 }
