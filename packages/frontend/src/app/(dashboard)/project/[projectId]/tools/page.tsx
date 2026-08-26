@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useProjectStore } from "@/lib/project-store";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,76 +11,36 @@ import { Wrench, Play, Search } from "lucide-react";
 import { JsonViewer } from "@/components/trace/json-viewer";
 import { ToolRerunModal } from "@/components/trace/tool-rerun-modal";
 import { PaginationBar } from "@/components/pagination-bar";
-
-const PAGE_SIZE = 12;
-const SEARCH_DEBOUNCE_MS = 300;
-
-function HealthBadge({ status }: { status?: { status: string; message?: string } }) {
-  if (!status) {
-    return (
-      <Badge variant="outline" className="text-xs text-muted-foreground">
-        checking...
-      </Badge>
-    );
-  }
-
-  switch (status.status) {
-    case "healthy":
-      return (
-        <Badge className="text-xs gap-1 bg-success/15 text-success border-success/30">
-          <span className="size-1.5 rounded-full bg-success" />
-          Connected
-        </Badge>
-      );
-    case "unhealthy":
-    case "unreachable":
-      return (
-        <Tooltip>
-          <TooltipTrigger>
-            <Badge variant="destructive" className="text-xs gap-1">
-              <span className="size-1.5 rounded-full bg-destructive" />
-              Offline
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            <p className="text-xs">{status.message ?? "Dev server unreachable"}</p>
-          </TooltipContent>
-        </Tooltip>
-      );
-    default:
-      return (
-        <Badge variant="outline" className="text-xs gap-1 text-muted-foreground">
-          <span className="size-1.5 rounded-full bg-muted-foreground" />
-          No server
-        </Badge>
-      );
-  }
-}
+import { HealthBadge } from "@/components/tools/health-badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PAGE_SIZE, TOOLS_REFETCH_INTERVAL_MS, HEALTH_REFETCH_INTERVAL_MS } from "@/lib/constants";
+import { useDebouncedSearch } from "@/lib/use-debounced-search";
 
 export default function ToolsPage() {
   const projectId = useProjectStore((s) => s.projectId);
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const { search, debouncedSearch, setSearch } = useDebouncedSearch();
   const [page, setPage] = useState(1);
   const [invokeTarget, setInvokeTarget] = useState<string | null>(null);
-  const debounceTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
-  const handleSearchChange = useCallback((value: string) => {
-    setSearch(value);
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    debounceTimer.current = setTimeout(() => {
-      setDebouncedSearch(value);
-      setPage(1);
-    }, SEARCH_DEBOUNCE_MS);
-  }, []);
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
 
   const { data, isLoading } = trpc.tools.list.useQuery(
-    { projectId: projectId!, limit: PAGE_SIZE, page, search: debouncedSearch || undefined },
-    { refetchInterval: 10_000, refetchIntervalInBackground: false, enabled: !!projectId },
+    { projectId: projectId!, limit: PAGE_SIZE.TOOLS, page, search: debouncedSearch || undefined },
+    {
+      refetchInterval: TOOLS_REFETCH_INTERVAL_MS,
+      refetchIntervalInBackground: false,
+      enabled: !!projectId,
+    },
   );
   const { data: healthStatus } = trpc.tools.healthCheckAll.useQuery(
     { projectId: projectId! },
-    { refetchInterval: 15_000, refetchIntervalInBackground: false, enabled: !!projectId },
+    {
+      refetchInterval: HEALTH_REFETCH_INTERVAL_MS,
+      refetchIntervalInBackground: false,
+      enabled: !!projectId,
+    },
   );
 
   const tools = data?.items ?? [];
@@ -97,7 +56,7 @@ export default function ToolsPage() {
             size="sm"
             placeholder="Search tools…"
             value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
             className="w-64 pl-8"
           />
         </div>
@@ -109,11 +68,11 @@ export default function ToolsPage() {
             {Array.from({ length: 6 }, (_, i) => (
               <Card key={i}>
                 <CardHeader className="pb-3">
-                  <div className="h-5 w-32 bg-muted animate-pulse rounded" />
+                  <Skeleton className="h-5 w-32" />
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <div className="h-4 w-full bg-muted animate-pulse rounded" />
-                  <div className="h-4 w-2/3 bg-muted animate-pulse rounded" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-2/3" />
                 </CardContent>
               </Card>
             ))}
@@ -221,7 +180,7 @@ export default function ToolsPage() {
         page={page}
         totalPages={totalPages}
         totalCount={totalCount}
-        pageSize={PAGE_SIZE}
+        pageSize={PAGE_SIZE.TOOLS}
         onPageChange={setPage}
         label="tools"
       />

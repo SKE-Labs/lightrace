@@ -1,17 +1,16 @@
 "use client";
 
-import { use, useState, useCallback, useMemo, useRef } from "react";
+import { use, useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useProjectStore } from "@/lib/project-store";
 import { TraceTree } from "@/components/trace/trace-tree";
 import { ObservationDetail } from "@/components/trace/observation-detail";
+import { useResizable } from "@/lib/use-resizable";
+import { RESIZABLE } from "@/lib/constants";
+import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { GitBranch, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-
-const DEFAULT_PANE_WIDTH = 320;
-const MIN_PANE_WIDTH = 240;
-const MAX_PANE_WIDTH = 500;
 
 export default function CompareViewPage({
   params,
@@ -21,7 +20,7 @@ export default function CompareViewPage({
   const { forkId } = use(params);
   const projectId = useProjectStore((s) => s.projectId);
 
-  const { data, isLoading } = trpc.forks.compare.useQuery(
+  const { data, isLoading, isFetching } = trpc.forks.compare.useQuery(
     { projectId: projectId!, forkId },
     { enabled: !!projectId },
   );
@@ -32,66 +31,26 @@ export default function CompareViewPage({
     side: "source" | "fork";
   } | null>(null);
 
-  // --- Resizable panes ---
-  const [leftWidth, setLeftWidth] = useState(DEFAULT_PANE_WIDTH);
-  const [rightWidth, setRightWidth] = useState(DEFAULT_PANE_WIDTH);
-  const leftPanelRef = useRef<HTMLDivElement>(null);
-  const rightPanelRef = useRef<HTMLDivElement>(null);
-
-  const createResizeHandler = useCallback(
-    (
-      panelRef: React.RefObject<HTMLDivElement | null>,
-      setter: (w: number) => void,
-      side: "left" | "right",
-    ) =>
-      (e: React.MouseEvent) => {
-        e.preventDefault();
-        const panel = panelRef.current;
-        if (!panel) return;
-
-        document.body.style.cursor = "col-resize";
-        document.body.style.userSelect = "none";
-
-        let currentWidth = panel.offsetWidth;
-
-        const handleMouseMove = (e: MouseEvent) => {
-          const rect = panel.getBoundingClientRect();
-          if (side === "left") {
-            currentWidth = Math.max(
-              MIN_PANE_WIDTH,
-              Math.min(MAX_PANE_WIDTH, e.clientX - rect.left),
-            );
-          } else {
-            currentWidth = Math.max(
-              MIN_PANE_WIDTH,
-              Math.min(MAX_PANE_WIDTH, rect.right - e.clientX),
-            );
-          }
-          panel.style.width = `${currentWidth}px`;
-        };
-
-        const handleMouseUp = () => {
-          document.body.style.cursor = "";
-          document.body.style.userSelect = "";
-          document.removeEventListener("mousemove", handleMouseMove);
-          document.removeEventListener("mouseup", handleMouseUp);
-          setter(currentWidth);
-        };
-
-        document.addEventListener("mousemove", handleMouseMove);
-        document.addEventListener("mouseup", handleMouseUp);
-      },
-    [],
-  );
-
-  const handleLeftResize = useMemo(
-    () => createResizeHandler(leftPanelRef, setLeftWidth, "left"),
-    [createResizeHandler],
-  );
-  const handleRightResize = useMemo(
-    () => createResizeHandler(rightPanelRef, setRightWidth, "right"),
-    [createResizeHandler],
-  );
+  const {
+    width: leftWidth,
+    panelRef: leftPanelRef,
+    handleMouseDown: handleLeftResize,
+  } = useResizable({
+    defaultWidth: RESIZABLE.COMPARE_DEFAULT,
+    minWidth: RESIZABLE.COMPARE_MIN,
+    maxWidth: RESIZABLE.COMPARE_MAX,
+    side: "left",
+  });
+  const {
+    width: rightWidth,
+    panelRef: rightPanelRef,
+    handleMouseDown: handleRightResize,
+  } = useResizable({
+    defaultWidth: RESIZABLE.COMPARE_DEFAULT,
+    minWidth: RESIZABLE.COMPARE_MIN,
+    maxWidth: RESIZABLE.COMPARE_MAX,
+    side: "right",
+  });
 
   const reverseIdMap = useMemo(() => {
     if (!data) return {};
@@ -129,29 +88,21 @@ export default function CompareViewPage({
     return (
       <div className="flex h-full flex-col">
         <div className="flex items-center gap-3 border-b border-border px-6 py-4">
-          <div className="h-4 w-48 bg-muted animate-pulse rounded" />
+          <Skeleton className="h-4 w-48" />
         </div>
         <div className="flex flex-1 overflow-hidden">
           <div className="w-[320px] border-r border-border p-3 space-y-2">
             {Array.from({ length: 6 }, (_, i) => (
-              <div
-                key={i}
-                className="h-4 bg-muted animate-pulse rounded"
-                style={{ width: `${120 - i * 10}px` }}
-              />
+              <Skeleton key={i} className="h-4" style={{ width: `${120 - i * 10}px` }} />
             ))}
           </div>
           <div className="w-[320px] border-r border-border p-3 space-y-2">
             {Array.from({ length: 4 }, (_, i) => (
-              <div
-                key={i}
-                className="h-4 bg-muted animate-pulse rounded"
-                style={{ width: `${100 - i * 10}px` }}
-              />
+              <Skeleton key={i} className="h-4" style={{ width: `${100 - i * 10}px` }} />
             ))}
           </div>
           <div className="flex-1 p-4">
-            <div className="h-6 w-48 bg-muted animate-pulse rounded" />
+            <Skeleton className="h-6 w-48" />
           </div>
         </div>
       </div>
@@ -203,25 +154,28 @@ export default function CompareViewPage({
 
       {/* Three-pane layout */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Source trace tree */}
+        {/* Source trace tree — flex-col so bottom loader sticks */}
         <div
           ref={leftPanelRef}
-          className="flex-shrink-0 overflow-auto border-r border-border"
+          className="flex-shrink-0 flex flex-col overflow-hidden border-r border-border"
           style={{ width: `${leftWidth}px` }}
         >
-          <div className="px-3 py-1.5 border-b border-border bg-muted/20">
+          <div className="px-3 py-1.5 border-b border-border bg-muted/20 shrink-0">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Original
             </span>
           </div>
-          <TraceTree
-            trace={sourceTrace}
-            observations={sourceTrace.observations}
-            selectedId={selected?.side === "source" ? selected.id : null}
-            onSelect={(id, isTrace) => setSelected({ id, isTrace, side: "source" })}
-            highlightIds={selected?.side === "fork" ? crossHighlightIds : undefined}
-            forkPointId={fork.forkPointId}
-          />
+          <div className="flex-1 min-h-0">
+            <TraceTree
+              trace={sourceTrace}
+              observations={sourceTrace.observations}
+              selectedId={selected?.side === "source" ? selected.id : null}
+              onSelect={(id, isTrace) => setSelected({ id, isTrace, side: "source" })}
+              highlightIds={selected?.side === "fork" ? crossHighlightIds : undefined}
+              forkPointId={fork.forkPointId}
+              isFetching={isFetching}
+            />
+          </div>
         </div>
 
         {/* Left drag handle */}
@@ -230,22 +184,25 @@ export default function CompareViewPage({
           onMouseDown={handleLeftResize}
         />
 
-        {/* Forked trace tree */}
+        {/* Forked trace tree — flex-col so bottom loader sticks */}
         <div
           ref={rightPanelRef}
-          className="flex-shrink-0 overflow-auto border-r border-border"
+          className="flex-shrink-0 flex flex-col overflow-hidden border-r border-border"
           style={{ width: `${rightWidth}px` }}
         >
-          <div className="px-3 py-1.5 border-b border-border bg-primary/5">
+          <div className="px-3 py-1.5 border-b border-border bg-primary/5 shrink-0">
             <span className="text-xs font-medium text-primary uppercase tracking-wider">Fork</span>
           </div>
-          <TraceTree
-            trace={forkedTrace}
-            observations={forkedTrace.observations}
-            selectedId={selected?.side === "fork" ? selected.id : null}
-            onSelect={(id, isTrace) => setSelected({ id, isTrace, side: "fork" })}
-            highlightIds={selected?.side === "source" ? crossHighlightIds : undefined}
-          />
+          <div className="flex-1 min-h-0">
+            <TraceTree
+              trace={forkedTrace}
+              observations={forkedTrace.observations}
+              selectedId={selected?.side === "fork" ? selected.id : null}
+              onSelect={(id, isTrace) => setSelected({ id, isTrace, side: "fork" })}
+              highlightIds={selected?.side === "source" ? crossHighlightIds : undefined}
+              isFetching={isFetching}
+            />
+          </div>
         </div>
 
         {/* Right drag handle */}

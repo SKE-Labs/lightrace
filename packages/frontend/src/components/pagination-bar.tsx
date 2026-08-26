@@ -35,6 +35,7 @@ export function PaginationBar({
           <Button
             variant="ghost"
             size="icon-sm"
+            type="button"
             onClick={() => onPageChange(Math.max(1, page - 1))}
             disabled={page === 1}
           >
@@ -48,6 +49,7 @@ export function PaginationBar({
             ) : (
               <button
                 key={p}
+                type="button"
                 onClick={() => onPageChange(p)}
                 className={cn(
                   "size-7 rounded-md text-xs font-medium transition-colors",
@@ -63,6 +65,7 @@ export function PaginationBar({
           <Button
             variant="ghost"
             size="icon-sm"
+            type="button"
             onClick={() => onPageChange(Math.min(totalPages, page + 1))}
             disabled={page === totalPages}
           >

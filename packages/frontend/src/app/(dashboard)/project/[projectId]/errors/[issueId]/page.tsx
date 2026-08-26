@@ -22,10 +22,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PaginationBar } from "@/components/pagination-bar";
-import { formatRelativeTime } from "@/lib/utils";
-import { ArrowLeft } from "lucide-react";
+import { formatRelativeTime, SECTION_LABEL } from "@/lib/utils";
+import { PAGE_SIZE } from "@/lib/constants";
+import { PriorityBadge, StatusBadge, priorityVariant, statusVariant } from "@/lib/error-config";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { CopyButton } from "@/components/ui/copy-button";
+import { PageLoader } from "@/components/ui/spinner";
 
 export default function ErrorDetailPage() {
   const params = useParams<{ projectId: string; issueId: string }>();
@@ -34,7 +37,7 @@ export default function ErrorDetailPage() {
   const router = useRouter();
   const projectId = useProjectStore((s) => s.projectId) ?? projectIdParam;
   const [eventsPage, setEventsPage] = useState(1);
-  const eventsPageSize = 10;
+  const eventsPageSize = PAGE_SIZE.ERROR_EVENTS;
 
   const {
     data: issue,
@@ -55,7 +58,7 @@ export default function ErrorDetailPage() {
   });
 
   if (isLoading) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading...</div>;
+    return <PageLoader message="Loading issue..." />;
   }
 
   if (!issue) {
@@ -73,17 +76,17 @@ export default function ErrorDetailPage() {
         <Button
           variant="ghost"
           size="sm"
-          className="gap-1 -ml-2 h-7"
+          className="gap-1 -ml-2"
           onClick={() => router.push(`/project/${projectId}/errors`)}
         >
           <ArrowLeft className="size-3.5" /> Back to Errors
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-sm font-semibold flex items-center gap-2">
+          <div className="space-y-1 min-w-0 flex-1">
+            <h1 className="text-lg font-semibold flex items-center gap-2 flex-wrap">
               <span className="size-2 rounded-full bg-error shrink-0" />
-              {issue.title}
-              <Badge variant="outline" className="font-mono text-[10px]">
+              <span className="break-words">{issue.title}</span>
+              <Badge variant="outline" className="font-mono">
                 {issue.shortId}
               </Badge>
             </h1>
@@ -96,28 +99,8 @@ export default function ErrorDetailPage() {
                   {issue.toolName}
                 </Badge>
               )}
-              <Badge
-                variant={
-                  issue.priority === "HIGH"
-                    ? "error"
-                    : issue.priority === "LOW"
-                      ? "secondary"
-                      : "warning"
-                }
-              >
-                {issue.priority}
-              </Badge>
-              <Badge
-                variant={
-                  issue.status === "UNRESOLVED"
-                    ? "error"
-                    : issue.status === "RESOLVED"
-                      ? "success"
-                      : "outline"
-                }
-              >
-                {issue.status}
-              </Badge>
+              <PriorityBadge priority={issue.priority} />
+              <StatusBadge status={issue.status} />
               <span className="text-muted-foreground">
                 {issue.count} events · {issue.traceCount} traces · {issue.userCount} users
               </span>
@@ -128,17 +111,21 @@ export default function ErrorDetailPage() {
               {issue.culprit && (
                 <>
                   {" "}
-                  · Culprit: <span className="font-mono">{issue.culprit}</span>
+                  · Culprit: <span className="font-mono text-foreground">{issue.culprit}</span>
                 </>
               )}
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 shrink-0">
             <Select
               value={issue.status}
               onValueChange={(v) =>
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                updateMutation.mutate({ projectId: projectId!, id: issue.id, status: v as any })
+                v &&
+                updateMutation.mutate({
+                  projectId: projectId!,
+                  id: issue.id,
+                  status: v as typeof issue.status,
+                })
               }
             >
               <SelectTrigger size="sm" className="w-36">
@@ -156,8 +143,12 @@ export default function ErrorDetailPage() {
             <Select
               value={issue.priority}
               onValueChange={(v) =>
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                updateMutation.mutate({ projectId: projectId!, id: issue.id, priority: v as any })
+                v &&
+                updateMutation.mutate({
+                  projectId: projectId!,
+                  id: issue.id,
+                  priority: v as typeof issue.priority,
+                })
               }
             >
               <SelectTrigger size="sm" className="w-28">
@@ -171,8 +162,8 @@ export default function ErrorDetailPage() {
             </Select>
           </div>
         </div>
-        <div className="flex gap-4 text-xs">
-          <div>
+        <div className="flex flex-wrap gap-4 text-xs">
+          <div className="flex items-center gap-1.5">
             <span className="text-muted-foreground">Fingerprint:</span>{" "}
             <span className="font-mono">{issue.fingerprint.slice(0, 12)}…</span>{" "}
             <CopyButton text={issue.fingerprint} />
@@ -202,13 +193,14 @@ export default function ErrorDetailPage() {
                     <TableHead>Error Type</TableHead>
                     <TableHead>Value</TableHead>
                     <TableHead>Observation</TableHead>
+                    <TableHead className="w-6" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {events.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={5}
+                        colSpan={6}
                         className="text-center text-muted-foreground py-8 text-sm"
                       >
                         No events
@@ -228,10 +220,14 @@ export default function ErrorDetailPage() {
                     return (
                       <TableRow
                         key={e.id}
-                        className="cursor-pointer"
-                        onClick={() => router.push(`/project/${projectId}/traces/${e.traceId}`)}
+                        className="cursor-pointer group/row hover:bg-accent/50"
+                        onClick={() =>
+                          router.push(
+                            `/project/${projectId}/traces/${e.traceId}?observationId=${encodeURIComponent(e.observationId)}`,
+                          )
+                        }
                       >
-                        <TableCell className="text-xs">
+                        <TableCell className="text-xs whitespace-nowrap">
                           {formatRelativeTime(new Date(e.timestamp))}
                         </TableCell>
                         <TableCell className="font-mono text-xs">{e.traceId.slice(0, 8)}</TableCell>
@@ -241,6 +237,9 @@ export default function ErrorDetailPage() {
                         </TableCell>
                         <TableCell className="font-mono text-xs">
                           {e.observationId.slice(0, 8)}
+                        </TableCell>
+                        <TableCell>
+                          <ChevronRight className="size-3 text-muted-foreground/0 group-hover/row:text-muted-foreground transition-colors" />
                         </TableCell>
                       </TableRow>
                     );
@@ -284,33 +283,36 @@ export default function ErrorDetailPage() {
                       key={e.id}
                       className="rounded-md border border-border bg-muted/20 p-3 text-xs"
                     >
-                      <div className="font-mono flex justify-between">
+                      <div className="font-mono flex justify-between gap-2">
                         <span>{e.observationId.slice(0, 8)}</span>
                         <span className="text-muted-foreground">
                           {new Date(e.timestamp).toLocaleString()}
                         </span>
                       </div>
-                      <div className="mt-1">
+                      <div className="mt-1 flex items-center gap-1.5">
                         Trace: <span className="font-mono">{e.traceId.slice(0, 8)}</span> →{" "}
                         <a
                           className="text-primary hover:underline"
-                          href={`/project/${projectId}/traces/${e.traceId}`}
+                          href={`/project/${projectId}/traces/${e.traceId}?observationId=${encodeURIComponent(e.observationId)}`}
+                          onClick={(ev) => {
+                            ev.preventDefault();
+                            router.push(
+                              `/project/${projectId}/traces/${e.traceId}?observationId=${encodeURIComponent(e.observationId)}`,
+                            );
+                          }}
                         >
                           view trace
                         </a>
                       </div>
                       {e.stacktrace && (
-                        <pre className="mt-2 whitespace-pre-wrap font-mono bg-card p-2 rounded border border-border max-h-32 overflow-auto">
+                        <pre className="mt-2 whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-mono bg-card p-2 rounded border border-border max-h-32 overflow-auto max-w-full">
                           {e.stacktrace}
                         </pre>
                       )}
                       {e.tags != null && (
-                        <div className="mt-1 text-muted-foreground">
+                        <div className="mt-1 text-muted-foreground break-words [overflow-wrap:anywhere]">
                           Tags:{" "}
-                          <span className="font-mono">
-                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                            {JSON.stringify(e.tags as any)}
-                          </span>
+                          <span className="font-mono">{JSON.stringify(e.tags as unknown)}</span>
                         </div>
                       )}
                     </div>
@@ -322,19 +324,19 @@ export default function ErrorDetailPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="w-80 shrink-0 border-l border-border bg-card p-4 space-y-4 overflow-auto">
+        <div className="w-80 shrink-0 border-l border-border bg-card p-4 space-y-4 overflow-auto hidden md:block">
           <div className="space-y-2">
-            <h3 className="text-xs font-semibold text-muted-foreground">DETAILS</h3>
+            <h3 className={SECTION_LABEL}>DETAILS</h3>
             <div className="text-xs space-y-1">
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-2">
                 <span className="text-muted-foreground">First Seen</span>
                 <span>{new Date(issue.firstSeen).toLocaleString()}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-2">
                 <span className="text-muted-foreground">Last Seen</span>
                 <span>{new Date(issue.lastSeen).toLocaleString()}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-2">
                 <span className="text-muted-foreground">First Trace</span>
                 <a
                   className="font-mono text-primary hover:underline"
@@ -343,7 +345,7 @@ export default function ErrorDetailPage() {
                   {issue.firstTraceId?.slice(0, 8) ?? "-"}
                 </a>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-2">
                 <span className="text-muted-foreground">Last Trace</span>
                 <a
                   className="font-mono text-primary hover:underline"
@@ -352,39 +354,52 @@ export default function ErrorDetailPage() {
                   {issue.lastTraceId?.slice(0, 8) ?? "-"}
                 </a>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-2">
                 <span className="text-muted-foreground">Events</span>
                 <span>{issue.count}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-2">
                 <span className="text-muted-foreground">Traces</span>
                 <span>{issue.traceCount}</span>
               </div>
             </div>
           </div>
           <div className="space-y-2">
-            <h3 className="text-xs font-semibold text-muted-foreground">STACKTRACE / ERROR</h3>
-            {events[0]?.stacktrace ? (
-              <pre className="whitespace-pre-wrap font-mono text-xs bg-muted p-2 rounded border border-border max-h-48 overflow-auto">
-                {events[0].stacktrace}
-              </pre>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                No stacktrace. SDK will send stacktrace after instrumentation (phase 1b).
-              </p>
-            )}
+            <h3 className={SECTION_LABEL}>STACKTRACE / ERROR</h3>
+            {(() => {
+              const first = events[0] as unknown as
+                | {
+                    stacktrace?: string | null;
+                    observation?: { errorStacktrace?: string | null };
+                  }
+                | undefined;
+              const fallbackStacktrace =
+                (issue.recentEvents?.[0] as unknown as { stacktrace?: string | null })
+                  ?.stacktrace ?? null;
+              const displayStacktrace =
+                first?.stacktrace ?? first?.observation?.errorStacktrace ?? fallbackStacktrace;
+              return displayStacktrace ? (
+                <pre className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-mono text-xs bg-muted p-2.5 rounded-md border border-border max-h-64 overflow-auto leading-relaxed">
+                  {displayStacktrace}
+                </pre>
+              ) : (
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  No stacktrace. SDK will send stacktrace after instrumentation (phase 1b).
+                </p>
+              );
+            })()}
           </div>
           <div className="space-y-2">
-            <h3 className="text-xs font-semibold text-muted-foreground">TAGS</h3>
+            <h3 className={SECTION_LABEL}>TAGS</h3>
             <div className="text-xs space-y-1">
               <div>
                 Type:{" "}
-                <Badge variant="secondary" className="font-mono text-[10px]">
+                <Badge variant="secondary" className="font-mono">
                   {issue.type}
                 </Badge>
               </div>
               {issue.toolName && (
-                <div>
+                <div className="break-words [overflow-wrap:anywhere]">
                   Tool: <span className="font-mono">{issue.toolName}</span>
                 </div>
               )}

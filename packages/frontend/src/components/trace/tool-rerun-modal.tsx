@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -8,24 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { FormattedView } from "./formatted-view";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import {
-  Play,
-  Loader2,
-  CheckCircle2,
-  XCircle,
-  ChevronRight,
-  Info,
-  Copy,
-  AlertTriangle,
-} from "lucide-react";
+import { Play, CheckCircle2, XCircle, ChevronRight, Info, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  KeyValueEditor,
-  inputToRows,
-  rowsToInput,
-  validateRow,
-  pythonReprToJson,
-} from "./key-value-editor";
+import { Spinner } from "@/components/ui/spinner";
+import { useToolInputEditor } from "@/lib/use-tool-input-editor";
+import { ToolInputEditor } from "./tool-input-editor";
+import { DevServerOfflineAlert } from "./dev-server-offline-alert";
 
 // --- Main Component ---
 
@@ -58,15 +46,7 @@ export function ToolRerunModal({
   );
   const devServerOffline = healthCheck.data != null && healthCheck.data.status !== "healthy";
 
-  const [rows, setRows] = useState(() => inputToRows(originalInput));
-  const [rawMode, setRawMode] = useState(false);
-  const [rawText, setRawText] = useState(() => {
-    if (typeof originalInput === "string") {
-      const parsed = pythonReprToJson(originalInput);
-      if (parsed !== null) return JSON.stringify(parsed, null, 2);
-    }
-    return JSON.stringify(originalInput, null, 2) ?? "{}";
-  });
+  const editor = useToolInputEditor(originalInput, observationId);
   const [contextText, setContextText] = useState(context ? JSON.stringify(context, null, 2) : "{}");
   const hasContext = context != null && Object.keys(context).length > 0;
   const [contextOpen, setContextOpen] = useState(hasContext);
@@ -78,25 +58,12 @@ export function ToolRerunModal({
   }
   const [result, setResult] = useState<InvokeResult | null>(null);
 
-  // Reset state when switching between observations
+  // Reset context/result when switching observations (input reset handled by hook)
   useEffect(() => {
-    setRows(inputToRows(originalInput));
-    setRawMode(false);
-    if (typeof originalInput === "string") {
-      const parsed = pythonReprToJson(originalInput);
-      if (parsed !== null) {
-        setRawText(JSON.stringify(parsed, null, 2));
-      } else {
-        setRawText(JSON.stringify(originalInput, null, 2) ?? "{}");
-      }
-    } else {
-      setRawText(JSON.stringify(originalInput, null, 2) ?? "{}");
-    }
     setContextText(context ? JSON.stringify(context, null, 2) : "{}");
     setContextOpen(context != null && Object.keys(context).length > 0);
     setResult(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [observationId]);
+  }, [observationId, context]);
 
   const invoke = trpc.tools.invoke.useMutation({
     onSuccess: (data) =>
@@ -108,27 +75,9 @@ export function ToolRerunModal({
     onError: (err) => setResult({ output: null, error: err.message, durationMs: 0 }),
   });
 
-  // Validation
-  const rowErrors = useMemo(() => rows.map(validateRow), [rows]);
-  const hasRowErrors = rowErrors.some((e) => e !== null);
-  const rawJsonValid = useMemo(() => {
-    if (!rawMode) return true;
-    try {
-      JSON.parse(rawText);
-      return true;
-    } catch {
-      return false;
-    }
-  }, [rawMode, rawText]);
-
   const handleRun = () => {
     try {
-      let parsedInput: unknown;
-      if (rawMode) {
-        parsedInput = JSON.parse(rawText);
-      } else {
-        parsedInput = rowsToInput(rows);
-      }
+      const parsedInput = editor.getParsedInput();
 
       let parsedContext: Record<string, unknown> | undefined;
       try {
@@ -151,7 +100,7 @@ export function ToolRerunModal({
     } catch (e) {
       setResult({
         output: null,
-        error: rawMode ? "Invalid JSON input" : String(e),
+        error: editor.rawMode ? "Invalid JSON input" : String(e),
         durationMs: 0,
       });
     }
@@ -169,92 +118,21 @@ export function ToolRerunModal({
           </SheetHeader>
 
           <div className="flex-1 overflow-auto space-y-4 p-4">
-            {/* Health warning */}
             {devServerOffline && (
-              <Alert variant="warning">
-                <AlertTriangle className="size-4" />
-                <AlertTitle>SDK dev server is not reachable</AlertTitle>
-                <AlertDescription>
-                  Make sure your SDK is running.
-                  {healthCheck.data?.callbackUrl?.includes("127.0.0.1") &&
-                    " If using Docker, set LIGHTRACE_DEV_SERVER_HOST to your host IP."}
-                </AlertDescription>
-              </Alert>
+              <DevServerOfflineAlert callbackUrl={healthCheck.data?.callbackUrl} />
             )}
 
-            {/* Input editor */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Input
-                </label>
-                <div className="flex rounded-md border border-border text-xs overflow-hidden">
-                  <button
-                    onClick={() => {
-                      if (rawMode) {
-                        // Switching to table: try to parse raw text into rows
-                        try {
-                          const parsed = JSON.parse(rawText);
-                          setRows(inputToRows(parsed));
-                        } catch {
-                          // Keep raw mode if can't parse
-                          return;
-                        }
-                      }
-                      setRawMode(false);
-                    }}
-                    className={cn(
-                      "px-2 py-0.5 transition-colors",
-                      !rawMode
-                        ? "bg-muted text-foreground"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    Table
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (!rawMode) {
-                        // Switching to raw: serialize rows to JSON
-                        try {
-                          setRawText(JSON.stringify(rowsToInput(rows), null, 2));
-                        } catch {
-                          setRawText("{}");
-                        }
-                      }
-                      setRawMode(true);
-                    }}
-                    className={cn(
-                      "px-2 py-0.5 transition-colors border-l border-border",
-                      rawMode
-                        ? "bg-muted text-foreground"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    Raw JSON
-                  </button>
-                </div>
-              </div>
-
-              {rawMode ? (
-                <div className="space-y-1">
-                  <textarea
-                    value={rawText}
-                    onChange={(e) => setRawText(e.target.value)}
-                    className="w-full min-h-[120px] rounded-md border border-border bg-muted/50 p-3 font-mono text-xs resize-y focus:outline-none focus:ring-1 focus:ring-ring"
-                    spellCheck={false}
-                  />
-                  {!rawJsonValid && (
-                    <p className="text-xs text-destructive flex items-center gap-1">
-                      <XCircle className="size-3" />
-                      Invalid JSON
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <KeyValueEditor rows={rows} onChange={setRows} />
-              )}
-            </div>
+            <ToolInputEditor
+              rows={editor.rows}
+              onChangeRows={editor.setRows}
+              rawMode={editor.rawMode}
+              rawText={editor.rawText}
+              onChangeRawText={editor.setRawText}
+              onSwitchToTable={editor.switchToTable}
+              onSwitchToRaw={editor.switchToRaw}
+              rawJsonValid={editor.rawJsonValid}
+              label="Input"
+            />
 
             {/* Context editor (collapsible) */}
             <div className="space-y-2">
@@ -375,12 +253,14 @@ export function ToolRerunModal({
             <Button
               onClick={handleRun}
               disabled={
-                invoke.isPending || (!rawMode && hasRowErrors) || (rawMode && !rawJsonValid)
+                invoke.isPending ||
+                (!editor.rawMode && editor.hasRowErrors) ||
+                (editor.rawMode && !editor.rawJsonValid)
               }
             >
               {invoke.isPending ? (
                 <>
-                  <Loader2 className="size-4 animate-spin mr-1" />
+                  <Spinner size="sm" className="mr-1" />
                   Running...
                 </>
               ) : (

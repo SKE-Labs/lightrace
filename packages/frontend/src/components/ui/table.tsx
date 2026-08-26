@@ -79,7 +79,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
         // default density
         "h-10 px-3 text-xs",
         // tight density (group-data-[density=tight]/table)
-        "group-data-[density=tight]/table:h-8 group-data-[density=tight]/table:px-3 group-data-[density=tight]/table:text-[11px] group-data-[density=tight]/table:uppercase group-data-[density=tight]/table:tracking-wider",
+        "group-data-[density=tight]/table:h-8 group-data-[density=tight]/table:px-3 group-data-[density=tight]/table:text-xs group-data-[density=tight]/table:uppercase group-data-[density=tight]/table:tracking-wider",
         className,
       )}
       {...props}

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { Plus, LayoutGrid, List, Users, ListTree } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 import { RoleBadge } from "@/lib/role-config";
 
 export default function ProjectsPage() {
@@ -76,10 +77,7 @@ export default function ProjectsPage() {
           {isLoading && (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
               {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="h-[100px] rounded-lg bg-foreground/[0.04] animate-pulse border border-border"
-                />
+                <Skeleton key={i} className="h-[100px] rounded-lg border border-border" />
               ))}
             </div>
           )}
@@ -117,7 +115,7 @@ export default function ProjectsPage() {
                       {project.description}
                     </div>
                   )}
-                  <div className="mt-auto flex items-center gap-3 text-[11px] text-muted-foreground pt-2">
+                  <div className="mt-auto flex items-center gap-3 text-xs text-muted-foreground pt-2">
                     <span className="flex items-center gap-1">
                       <Users className="size-3" strokeWidth={1.5} />
                       {project.memberCount}
@@ -173,7 +171,7 @@ export default function ProjectsPage() {
                         <div>
                           <span className="font-medium text-foreground">{project.name}</span>
                           {project.description && (
-                            <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
+                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
                               {project.description}
                             </p>
                           )}

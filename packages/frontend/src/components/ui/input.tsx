@@ -12,11 +12,11 @@ const inputVariants = cva(
   {
     variants: {
       size: {
-        // Form fields: 36px / 13px (design spec)
-        default: "h-9 px-3 text-[13px] file:h-7 file:text-[13px]",
+        // Form fields: 36px / 14px (design spec: text-sm)
+        default: "h-9 px-3 text-sm file:h-7 file:text-sm",
         // Toolbar / inline searches
         sm: "h-7 px-2 text-xs file:h-6 file:text-xs",
-        xs: "h-6 px-2 text-[11px] file:h-5 file:text-[11px]",
+        xs: "h-6 px-2 text-xs file:h-5 file:text-xs",
       },
     },
     defaultVariants: {

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
+import { PageLoader } from "@/components/ui/spinner";
 
 export default function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -36,11 +37,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   }, [status, token, acceptMutation]);
 
   if (status === "loading" || acceptMutation.isPending) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-muted-foreground">Accepting invitation...</p>
-      </div>
-    );
+    return <PageLoader message="Accepting invitation..." />;
   }
 
   if (error) {

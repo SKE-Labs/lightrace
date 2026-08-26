@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { cn, formatDuration, formatCost } from "@/lib/utils";
 import { getObservationIcon } from "@/lib/observation-icons";
 import { Route, ChevronRight } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { useWsReady } from "@/lib/trpc-provider";
+import { ThinkingDots } from "@/components/ui/loader";
 import type { Observation } from "@prisma/client";
 
 interface TraceTreeProps {
@@ -20,6 +22,8 @@ interface TraceTreeProps {
   highlightIds?: Set<string>;
   /** ID of the fork point observation to mark with a visual indicator. */
   forkPointId?: string;
+  /** Whether the trace query is currently fetching (polling or WS invalidation). */
+  isFetching?: boolean;
 }
 
 interface FlatNode {
@@ -105,7 +109,48 @@ export function TraceTree({
   onSelect,
   highlightIds,
   forkPointId,
+  isFetching = false,
 }: TraceTreeProps) {
+  const wsReady = useWsReady();
+  const prevCountRef = useRef(observations.length);
+  const lastIncreaseRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (observations.length > prevCountRef.current) {
+      lastIncreaseRef.current = Date.now();
+    }
+    prevCountRef.current = observations.length;
+  }, [observations.length]);
+
+  // Bottom loader should only show when actively being streamed, not on 30s poll for old traces
+  const [showStreaming, setShowStreaming] = useState(false);
+  const streamingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (wsReady && isFetching) {
+      const hasOpen = observations.some((o) => !o.endTime);
+      const recentIncrease = Date.now() - lastIncreaseRef.current < 10_000;
+      const traceAge = Date.now() - new Date(trace.timestamp).getTime();
+      const isCandidate =
+        hasOpen || recentIncrease || traceAge < 60_000 || observations.length === 0;
+      if (!isCandidate) {
+        setShowStreaming(false);
+        return;
+      }
+      // Actively streaming — keep visible, clear any pending hide
+      setShowStreaming(true);
+      if (streamingTimeoutRef.current) clearTimeout(streamingTimeoutRef.current);
+    } else {
+      // Not fetching — hide shortly after (400ms debounce to avoid flicker between WS bursts)
+      if (streamingTimeoutRef.current) clearTimeout(streamingTimeoutRef.current);
+      streamingTimeoutRef.current = setTimeout(() => setShowStreaming(false), 600);
+    }
+    return () => {
+      if (streamingTimeoutRef.current) clearTimeout(streamingTimeoutRef.current);
+    };
+  }, [wsReady, isFetching, observations, trace.timestamp]);
+
+  const isActivelyStreaming = showStreaming;
   const tree = useMemo(() => buildTree(observations), [observations]);
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
 
@@ -141,15 +186,59 @@ export function TraceTree({
   }, [observations, trace.timestamp]);
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-full min-h-0">
+      {/* Fetching progress bar (WS invalidation or polling) */}
+      <div className="h-0.5 w-full overflow-hidden bg-transparent shrink-0">
+        <div
+          className={cn(
+            "h-full bg-primary transition-all duration-300",
+            isFetching ? "w-full opacity-100 animate-pulse" : "w-0 opacity-0",
+          )}
+        />
+      </div>
       {/* Toolbar */}
-      {observations.length > 0 && (
-        <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/50">
-          <span className="text-[11px] text-muted-foreground">
+      {(observations.length > 0 || isFetching || wsReady) && (
+        <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/50 gap-2 shrink-0">
+          <span className="text-xs text-muted-foreground shrink-0">
             {observations.length} observation{observations.length !== 1 && "s"}
           </span>
-          <div className="flex gap-1.5 text-[11px]">
+
+          {/* Live / fetching indicator - uses shared Loader/ThinkingDots */}
+          <div className="flex items-center justify-center flex-1">
+            {isFetching ? (
+              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                <ThinkingDots size="sm" />
+                <span className="hidden sm:inline">{wsReady ? "Live syncing" : "Updating"}</span>
+              </span>
+            ) : wsReady ? (
+              <Tooltip>
+                <TooltipTrigger className="inline-flex items-center gap-1.5 text-xs text-success cursor-default">
+                  <span className="relative flex size-2">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-75 animate-ping" />
+                    <span className="relative inline-flex rounded-full size-2 bg-success" />
+                  </span>
+                  <span className="hidden sm:inline">Live</span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                  Real-time updates via WebSocket
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger className="inline-flex items-center gap-1.5 text-xs text-muted-foreground cursor-default">
+                  <span className="size-2 rounded-full bg-muted-foreground/40" />
+                  <span className="hidden sm:inline">Polling</span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                  Polling every 30s — WebSocket not connected
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+
+          <div className="flex gap-1.5 text-xs shrink-0">
             <button
+              type="button"
               onClick={expandAll}
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
@@ -157,6 +246,7 @@ export function TraceTree({
             </button>
             <span className="text-border">|</span>
             <button
+              type="button"
               onClick={collapseAll}
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
@@ -166,126 +256,141 @@ export function TraceTree({
         </div>
       )}
 
-      {/* Trace root node */}
-      <div
-        className={cn(
-          "flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors duration-100",
-          selectedId === trace.id ? "bg-foreground/7" : "hover:bg-foreground/3",
-        )}
-        onClick={() => onSelect(trace.id, true)}
-      >
-        <span className="w-4 shrink-0" />
-        <Tooltip>
-          <TooltipTrigger className="inline-flex">
-            <Route className="size-4 shrink-0 text-chart-4" strokeWidth={2} />
-          </TooltipTrigger>
-          <TooltipContent>Trace</TooltipContent>
-        </Tooltip>
-        <span className="text-[12.5px] truncate min-w-0 flex-1 text-foreground">
-          {trace.name || trace.id.slice(0, 8)}
-        </span>
-        {traceDuration > 0 && (
-          <span className="ml-auto text-[11px] text-muted-foreground font-mono">
-            {formatDuration(traceDuration)}
+      <div className="flex-1 overflow-auto min-h-0">
+        {/* Trace root node */}
+        <div
+          className={cn(
+            "flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors duration-100",
+            selectedId === trace.id ? "bg-foreground/7" : "hover:bg-foreground/3",
+          )}
+          onClick={() => onSelect(trace.id, true)}
+        >
+          <span className="w-4 shrink-0" />
+          <Tooltip>
+            <TooltipTrigger className="inline-flex">
+              <Route className="size-4 shrink-0 text-chart-4" strokeWidth={2} />
+            </TooltipTrigger>
+            <TooltipContent>Trace</TooltipContent>
+          </Tooltip>
+          <span className="text-sm truncate min-w-0 flex-1 text-foreground">
+            {trace.name || trace.id.slice(0, 8)}
           </span>
+          {traceDuration > 0 && (
+            <span className="ml-auto text-xs text-muted-foreground font-mono">
+              {formatDuration(traceDuration)}
+            </span>
+          )}
+        </div>
+
+        {/* Observation tree (flattened) */}
+        {flatNodes.map((flat) => {
+          const obs = flat.observation;
+          const { icon: Icon, color, label } = getObservationIcon(obs.type);
+          const duration = obs.endTime
+            ? new Date(obs.endTime).getTime() - new Date(obs.startTime).getTime()
+            : 0;
+          const isSelected = selectedId === obs.id;
+          const isHighlighted = highlightIds?.has(obs.id);
+          const isForkPoint = forkPointId === obs.id;
+          const isCollapsed = collapsedIds.has(obs.id);
+
+          return (
+            <div
+              key={obs.id}
+              className={cn(
+                "flex items-center pr-3 cursor-pointer transition-colors duration-100 select-none",
+                "h-7", // 28px row height
+                isSelected ? "bg-foreground/[0.07]" : "hover:bg-foreground/3",
+                isHighlighted && "ring-1 ring-inset ring-primary/30",
+                isForkPoint && !isSelected && "ring-1 ring-inset ring-primary/30 bg-row-fork",
+              )}
+              onClick={() => onSelect(obs.id, false)}
+            >
+              {/* Connector guides for ancestor depths 1..depth-1 */}
+              {flat.ancestorContinues.map((continues, i) => (
+                <span key={`g-${i}`} className={cn("tree-guide", continues && "tree-guide-v")} />
+              ))}
+              {/* Connector at this node's own depth (T or L) */}
+              {flat.depth > 0 && (
+                <span
+                  className={cn(
+                    "tree-guide",
+                    flat.hasSiblingBelow ? "tree-guide-t" : "tree-guide-l",
+                  )}
+                />
+              )}
+
+              {/* Expand/collapse toggle or spacer */}
+              {flat.hasChildren ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleCollapse(obs.id);
+                  }}
+                  className="flex items-center justify-center size-4 shrink-0 text-muted-foreground hover:text-foreground transition-colors rounded-sm"
+                >
+                  <ChevronRight
+                    className={cn("size-3 transition-transform", !isCollapsed && "rotate-90")}
+                    strokeWidth={2.5}
+                  />
+                </button>
+              ) : (
+                <span className="w-4 shrink-0" />
+              )}
+
+              {/* Type icon (PRESERVED — colors from observation-icons.ts) */}
+              <Tooltip>
+                <TooltipTrigger className="inline-flex shrink-0 mx-1">
+                  <Icon className={cn("size-3.75", color)} strokeWidth={2} />
+                </TooltipTrigger>
+                <TooltipContent>{label}</TooltipContent>
+              </Tooltip>
+
+              {/* Name */}
+              <span className="text-sm truncate min-w-0 flex-1 text-foreground">
+                {obs.name || obs.id.slice(0, 8)}
+              </span>
+
+              {/* Error indicator */}
+              {obs.level === "ERROR" && (
+                <span className="size-1.5 rounded-full bg-error shrink-0 ml-1.5" title="Error" />
+              )}
+
+              {/* Tokens */}
+              {obs.totalTokens > 0 && (
+                <span className="text-xs text-muted-foreground font-mono whitespace-nowrap ml-1.5">
+                  {obs.totalTokens}t
+                </span>
+              )}
+
+              {/* Cost */}
+              {obs.totalCost !== null && Number(obs.totalCost) > 0 && (
+                <span className="text-xs text-muted-foreground font-mono whitespace-nowrap ml-1.5">
+                  {formatCost(Number(obs.totalCost))}
+                </span>
+              )}
+
+              {/* Duration */}
+              <span className="text-xs text-muted-foreground font-mono whitespace-nowrap ml-1.5">
+                {duration > 0 ? formatDuration(duration) : "—"}
+              </span>
+            </div>
+          );
+        })}
+
+        {observations.length === 0 && !isActivelyStreaming && (
+          <div className="px-6 py-8 text-center text-sm text-muted-foreground">No observations</div>
         )}
       </div>
 
-      {/* Observation tree (flattened) */}
-      {flatNodes.map((flat) => {
-        const obs = flat.observation;
-        const { icon: Icon, color, label } = getObservationIcon(obs.type);
-        const duration = obs.endTime
-          ? new Date(obs.endTime).getTime() - new Date(obs.startTime).getTime()
-          : 0;
-        const isSelected = selectedId === obs.id;
-        const isHighlighted = highlightIds?.has(obs.id);
-        const isForkPoint = forkPointId === obs.id;
-        const isCollapsed = collapsedIds.has(obs.id);
-
-        return (
-          <div
-            key={obs.id}
-            className={cn(
-              "flex items-center pr-3 cursor-pointer transition-colors duration-100 select-none",
-              "h-7", // 28px row height
-              isSelected ? "bg-foreground/[0.07]" : "hover:bg-foreground/3",
-              isHighlighted && "ring-1 ring-inset ring-primary/30",
-              isForkPoint && !isSelected && "ring-1 ring-inset ring-primary/30 bg-row-fork",
-            )}
-            onClick={() => onSelect(obs.id, false)}
-          >
-            {/* Connector guides for ancestor depths 1..depth-1 */}
-            {flat.ancestorContinues.map((continues, i) => (
-              <span key={`g-${i}`} className={cn("tree-guide", continues && "tree-guide-v")} />
-            ))}
-            {/* Connector at this node's own depth (T or L) */}
-            {flat.depth > 0 && (
-              <span
-                className={cn("tree-guide", flat.hasSiblingBelow ? "tree-guide-t" : "tree-guide-l")}
-              />
-            )}
-
-            {/* Expand/collapse toggle or spacer */}
-            {flat.hasChildren ? (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleCollapse(obs.id);
-                }}
-                className="flex items-center justify-center size-4 shrink-0 text-muted-foreground hover:text-foreground transition-colors rounded-sm"
-              >
-                <ChevronRight
-                  className={cn("size-3 transition-transform", !isCollapsed && "rotate-90")}
-                  strokeWidth={2.5}
-                />
-              </button>
-            ) : (
-              <span className="w-4 shrink-0" />
-            )}
-
-            {/* Type icon (PRESERVED — colors from observation-icons.ts) */}
-            <Tooltip>
-              <TooltipTrigger className="inline-flex shrink-0 mx-1">
-                <Icon className={cn("size-3.75", color)} strokeWidth={2} />
-              </TooltipTrigger>
-              <TooltipContent>{label}</TooltipContent>
-            </Tooltip>
-
-            {/* Name */}
-            <span className="text-[12.5px] truncate min-w-0 flex-1 text-foreground">
-              {obs.name || obs.id.slice(0, 8)}
-            </span>
-
-            {/* Error indicator */}
-            {obs.level === "ERROR" && (
-              <span className="size-1.5 rounded-full bg-error shrink-0 ml-1.5" title="Error" />
-            )}
-
-            {/* Tokens */}
-            {obs.totalTokens > 0 && (
-              <span className="text-[10px] text-muted-foreground font-mono whitespace-nowrap ml-1.5">
-                {obs.totalTokens}t
-              </span>
-            )}
-
-            {/* Cost */}
-            {obs.totalCost !== null && Number(obs.totalCost) > 0 && (
-              <span className="text-[10px] text-muted-foreground font-mono whitespace-nowrap ml-1.5">
-                {formatCost(Number(obs.totalCost))}
-              </span>
-            )}
-
-            {/* Duration */}
-            <span className="text-[10.5px] text-muted-foreground font-mono whitespace-nowrap ml-1.5">
-              {duration > 0 ? formatDuration(duration) : "—"}
-            </span>
-          </div>
-        );
-      })}
-
-      {observations.length === 0 && (
-        <div className="px-6 py-8 text-center text-sm text-muted-foreground">No observations</div>
+      {/* Bottom loader — fixed at bottom of panel, only when actively being streamed */}
+      {isActivelyStreaming && (
+        <div className="shrink-0 flex items-center justify-center gap-2 px-3 py-2.5 border-t border-border bg-card">
+          <ThinkingDots size="sm" />
+          <span className="text-xs font-medium text-muted-foreground">
+            Streaming new observations…
+          </span>
+        </div>
       )}
     </div>
   );

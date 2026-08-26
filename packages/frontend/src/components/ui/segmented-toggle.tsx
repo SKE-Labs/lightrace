@@ -15,7 +15,7 @@ export function SegmentedToggle<T extends string>({
   options,
   size = "xs",
 }: SegmentedToggleProps<T>) {
-  const textSize = size === "sm" ? "text-xs" : "text-[10px]";
+  const textSize = "text-xs";
 
   return (
     <div className={cn("flex rounded-md border border-border overflow-hidden", textSize)}>

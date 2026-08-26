@@ -334,22 +334,25 @@ function ChatMessageView({
 
   return (
     <div>
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors"
-      >
-        <RoleIcon className={cn("size-4 shrink-0", roleColor)} />
-        <span className="text-xs font-medium shrink-0">{label}</span>
-        {!expanded && (
-          <span className="text-xs text-muted-foreground truncate min-w-0">{preview}</span>
-        )}
+      <div className="flex items-center gap-2 w-full px-4 py-3 hover:bg-muted/50 transition-colors">
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-2 flex-1 min-w-0 text-left"
+        >
+          <RoleIcon className={cn("size-4 shrink-0", roleColor)} />
+          <span className="text-xs font-medium shrink-0">{label}</span>
+          {!expanded && (
+            <span className="text-xs text-muted-foreground truncate min-w-0">{preview}</span>
+          )}
+        </button>
         {!expanded && rawContent && (
           <CopyButton
             text={rawContent}
-            className="ml-auto text-muted-foreground hover:text-foreground"
+            className="shrink-0 text-muted-foreground hover:text-foreground"
           />
         )}
-      </button>
+      </div>
       {expanded && (
         <div className="px-4 pt-1 pb-4 space-y-2">
           {/* Thinking/reasoning */}
@@ -362,7 +365,7 @@ function ChatMessageView({
             (renderMode === "markdown" ? (
               <MemoizedMarkdown text={textContent} className="text-sm" />
             ) : (
-              <div className="text-sm whitespace-pre-wrap break-words leading-relaxed font-mono">
+              <div className="text-xs whitespace-pre-wrap break-words leading-relaxed font-mono">
                 {textContent}
               </div>
             ))}
@@ -434,7 +437,7 @@ function ToolCallWithResult({
       >
         <Wrench className="size-3 text-chart-5 shrink-0" />
         <ChevronIcon expanded={expanded} />
-        <span className="text-xs font-medium font-mono">{tc.name}</span>
+        <span className="text-xs font-mono">{tc.name}</span>
         {!expanded && argsPreview && (
           <span className="text-xs text-muted-foreground truncate ml-1">({argsPreview})</span>
         )}
@@ -581,7 +584,7 @@ function ChatMLView({
       {/* Messages header: label + expand/collapse + render mode */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-3">
-          <h3 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Messages
           </h3>
           {displayMessages.length > 2 && (
@@ -655,10 +658,10 @@ function ToolsSection({
   return (
     <div className="space-y-2">
       <div className="inline-flex items-center gap-2">
-        <h3 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           Tools
         </h3>
-        <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+        <span className="text-xs font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
           {tools.length}
         </span>
       </div>
@@ -694,27 +697,30 @@ function ToolCard({ toolDef, isCalled }: { toolDef: Record<string, unknown>; isC
 
   return (
     <div>
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 w-full text-left px-3 py-2.5 hover:bg-muted/50 transition-colors"
-      >
-        <Wrench className="size-3.5 text-chart-5 shrink-0" />
-        <code className="text-xs font-medium">{name}</code>
-        {isCalled && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-chart-2/15 text-chart-2">
-            Called
-          </span>
-        )}
+      <div className="flex items-center gap-2 w-full px-3 py-2.5 hover:bg-muted/50 transition-colors">
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-2 flex-1 min-w-0 text-left"
+        >
+          <Wrench className="size-3.5 text-chart-5 shrink-0" />
+          <code className="text-xs font-medium">{name}</code>
+          {isCalled && (
+            <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-chart-2/15 text-chart-2">
+              Called
+            </span>
+          )}
+        </button>
         <CopyButton
           text={JSON.stringify(toolDef, null, 2)}
-          className="ml-auto text-muted-foreground hover:text-foreground"
+          className="shrink-0 text-muted-foreground hover:text-foreground"
         />
-      </button>
+      </div>
       {expanded && (
         <div className="px-3 pt-1 pb-4 space-y-3">
           {desc && (
             <div className="space-y-1">
-              <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Description
               </h4>
               <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{desc}</p>
@@ -722,7 +728,7 @@ function ToolCard({ toolDef, isCalled }: { toolDef: Record<string, unknown>; isC
           )}
           {paramEntries.length > 0 ? (
             <div className="space-y-1">
-              <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Parameters
               </h4>
               <div className="overflow-auto rounded border border-border/50">

@@ -6,6 +6,7 @@ import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { BrandLogo } from "@/components/brand-logo";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -39,8 +40,7 @@ export function TopNav({ projectId, breadcrumbs }: TopNavProps) {
       {/* Left: Logo + breadcrumb */}
       <div className="flex items-center gap-2">
         <Link href="/projects" className="flex items-center hover:opacity-80 transition-opacity">
-          <img src="/lr_primary.svg" alt="LightRace" className="h-6 w-auto dark:hidden" />
-          <img src="/lr_white.svg" alt="LightRace" className="h-6 w-auto hidden dark:block" />
+          <BrandLogo size="sm" />
         </Link>
 
         {projectId && (

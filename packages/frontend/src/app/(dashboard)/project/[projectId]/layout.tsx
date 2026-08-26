@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { useProjectStore } from "@/lib/project-store";
 import { TopNav } from "@/components/layout/top-nav";
 import { Sidebar } from "@/components/layout/sidebar";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function ProjectLayout({ children }: { children: React.ReactNode }) {
   const params = useParams<{ projectId: string }>();
@@ -78,7 +79,10 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
   if (isLoading || (!project && !error)) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading project...</p>
+        <div className="flex flex-col items-center gap-3">
+          <Spinner size="lg" className="text-primary" />
+          <p className="text-sm text-muted-foreground">Loading project...</p>
+        </div>
       </div>
     );
   }

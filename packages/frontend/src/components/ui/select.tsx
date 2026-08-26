@@ -43,7 +43,7 @@ function SelectTrigger({
       className={cn(
         FORM_FIELD_BASE,
         "flex w-full items-center justify-between gap-2 whitespace-nowrap data-placeholder:text-muted-foreground",
-        "data-[size=default]:h-9 data-[size=default]:px-3 data-[size=default]:text-[13px]",
+        "data-[size=default]:h-9 data-[size=default]:px-3 data-[size=default]:text-sm",
         "data-[size=sm]:h-7 data-[size=sm]:px-2 data-[size=sm]:text-xs",
         "*:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5",
         "[&_svg]:pointer-events-none [&_svg]:shrink-0",

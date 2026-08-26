@@ -1,20 +1,16 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { GitBranch, Loader2, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
-import { cn } from "@/lib/utils";
-import {
-  KeyValueEditor,
-  inputToRows,
-  rowsToInput,
-  validateRow,
-  pythonReprToJson,
-} from "./key-value-editor";
+import { GitBranch, CheckCircle2, XCircle } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
+import { useToolInputEditor } from "@/lib/use-tool-input-editor";
+import { ToolInputEditor } from "./tool-input-editor";
+import { DevServerOfflineAlert } from "./dev-server-offline-alert";
 
 interface ForkModalProps {
   open: boolean;
@@ -45,37 +41,16 @@ export function ForkModal({
   );
   const devServerOffline = healthCheck.data != null && healthCheck.data.status !== "healthy";
 
-  const [rows, setRows] = useState(() => inputToRows(originalInput));
-  const [rawMode, setRawMode] = useState(false);
-  const [rawText, setRawText] = useState(() => {
-    if (typeof originalInput === "string") {
-      const parsed = pythonReprToJson(originalInput);
-      if (parsed !== null) return JSON.stringify(parsed, null, 2);
-    }
-    return JSON.stringify(originalInput, null, 2) ?? "{}";
-  });
+  const editor = useToolInputEditor(originalInput, observationId);
 
   type ForkState = "idle" | "creating" | "done" | "error";
   const [forkState, setForkState] = useState<ForkState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Reset state when switching between observations
+  // Reset fork-specific state when switching observations (input handled by hook)
   useEffect(() => {
-    setRows(inputToRows(originalInput));
-    setRawMode(false);
-    if (typeof originalInput === "string") {
-      const parsed = pythonReprToJson(originalInput);
-      if (parsed !== null) {
-        setRawText(JSON.stringify(parsed, null, 2));
-      } else {
-        setRawText(JSON.stringify(originalInput, null, 2) ?? "{}");
-      }
-    } else {
-      setRawText(JSON.stringify(originalInput, null, 2) ?? "{}");
-    }
     setForkState("idle");
     setErrorMessage(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [observationId]);
 
   const forkMutation = trpc.forks.create.useMutation({
@@ -97,27 +72,9 @@ export function ForkModal({
     },
   });
 
-  // Validation
-  const rowErrors = useMemo(() => rows.map(validateRow), [rows]);
-  const hasRowErrors = rowErrors.some((e) => e !== null);
-  const rawJsonValid = useMemo(() => {
-    if (!rawMode) return true;
-    try {
-      JSON.parse(rawText);
-      return true;
-    } catch {
-      return false;
-    }
-  }, [rawMode, rawText]);
-
   const handleFork = () => {
     try {
-      let parsedInput: unknown;
-      if (rawMode) {
-        parsedInput = JSON.parse(rawText);
-      } else {
-        parsedInput = rowsToInput(rows);
-      }
+      const parsedInput = editor.getParsedInput();
 
       forkMutation.mutate({
         projectId,
@@ -128,7 +85,7 @@ export function ForkModal({
       });
     } catch (e) {
       setForkState("error");
-      setErrorMessage(rawMode ? "Invalid JSON input" : String(e));
+      setErrorMessage(editor.rawMode ? "Invalid JSON input" : String(e));
     }
   };
 
@@ -149,89 +106,21 @@ export function ForkModal({
         </SheetHeader>
 
         <div className="flex-1 overflow-auto space-y-4 p-4">
-          {/* Health warning */}
           {devServerOffline && (
-            <Alert variant="warning">
-              <AlertTriangle className="size-4" />
-              <AlertTitle>SDK dev server is not reachable</AlertTitle>
-              <AlertDescription>
-                Make sure your SDK is running.
-                {healthCheck.data?.callbackUrl?.includes("127.0.0.1") &&
-                  " If using Docker, set LIGHTRACE_DEV_SERVER_HOST to your host IP."}
-              </AlertDescription>
-            </Alert>
+            <DevServerOfflineAlert callbackUrl={healthCheck.data?.callbackUrl} />
           )}
 
-          {/* Input editor */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Modified Input
-              </label>
-              <div className="flex rounded-md border border-border text-xs overflow-hidden">
-                <button
-                  onClick={() => {
-                    if (rawMode) {
-                      try {
-                        const parsed = JSON.parse(rawText);
-                        setRows(inputToRows(parsed));
-                      } catch {
-                        return;
-                      }
-                    }
-                    setRawMode(false);
-                  }}
-                  className={cn(
-                    "px-2 py-0.5 transition-colors",
-                    !rawMode
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  Table
-                </button>
-                <button
-                  onClick={() => {
-                    if (!rawMode) {
-                      try {
-                        setRawText(JSON.stringify(rowsToInput(rows), null, 2));
-                      } catch {
-                        setRawText("{}");
-                      }
-                    }
-                    setRawMode(true);
-                  }}
-                  className={cn(
-                    "px-2 py-0.5 transition-colors border-l border-border",
-                    rawMode
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  Raw JSON
-                </button>
-              </div>
-            </div>
-
-            {rawMode ? (
-              <div className="space-y-1">
-                <textarea
-                  value={rawText}
-                  onChange={(e) => setRawText(e.target.value)}
-                  className="w-full min-h-[120px] rounded-md border border-border bg-muted/50 p-3 font-mono text-xs resize-y focus:outline-none focus:ring-1 focus:ring-ring"
-                  spellCheck={false}
-                />
-                {!rawJsonValid && (
-                  <p className="text-xs text-destructive flex items-center gap-1">
-                    <XCircle className="size-3" />
-                    Invalid JSON
-                  </p>
-                )}
-              </div>
-            ) : (
-              <KeyValueEditor rows={rows} onChange={setRows} />
-            )}
-          </div>
+          <ToolInputEditor
+            rows={editor.rows}
+            onChangeRows={editor.setRows}
+            rawMode={editor.rawMode}
+            rawText={editor.rawText}
+            onChangeRawText={editor.setRawText}
+            onSwitchToTable={editor.switchToTable}
+            onSwitchToRaw={editor.switchToRaw}
+            rawJsonValid={editor.rawJsonValid}
+            label="Modified Input"
+          />
 
           {/* Status / Error */}
           {forkState === "done" && !errorMessage && (
@@ -259,11 +148,15 @@ export function ForkModal({
           </Button>
           <Button
             onClick={handleFork}
-            disabled={isPending || (!rawMode && hasRowErrors) || (rawMode && !rawJsonValid)}
+            disabled={
+              isPending ||
+              (!editor.rawMode && editor.hasRowErrors) ||
+              (editor.rawMode && !editor.rawJsonValid)
+            }
           >
             {isPending ? (
               <>
-                <Loader2 className="size-4 animate-spin mr-1" />
+                <Spinner size="sm" className="mr-1" />
                 Creating fork...
               </>
             ) : (

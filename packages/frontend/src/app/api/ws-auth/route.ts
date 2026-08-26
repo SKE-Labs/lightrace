@@ -28,14 +28,16 @@ export async function GET(request: NextRequest) {
   });
 
   let wsUrl: string;
-  const wsPort = process.env.WS_PORT;
-  if (wsPort && !request.headers.get("x-forwarded-host")) {
-    // Dev mode: no reverse proxy, connect directly to the backend WS server
-    const hostname = host.split(":")[0];
-    wsUrl = `ws://${hostname}:${wsPort}?${params.toString()}`;
-  } else {
-    // Production (behind Caddy/reverse proxy): use /ws path
+  const isProd = process.env.NODE_ENV === "production";
+  if (isProd) {
+    // Production behind Caddy: single external port (LIGHTRACE_PORT), /ws proxied to backend:WS_PORT
+    // Caddyfile: handle /ws { reverse_proxy lightrace-backend:{$WS_PORT:3003} }
     wsUrl = `${proto}://${host}/ws?${params.toString()}`;
+  } else {
+    // Local dev (pnpm dev): no Caddy, frontend :3001 → backend WS direct :3003
+    const wsPort = process.env.WS_PORT || "3003";
+    const hostname = host.split(":")[0] || "localhost";
+    wsUrl = `ws://${hostname}:${wsPort}?${params.toString()}`;
   }
 
   return NextResponse.json({

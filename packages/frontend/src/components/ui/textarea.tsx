@@ -8,9 +8,9 @@ const textareaVariants = cva(
   {
     variants: {
       size: {
-        default: "min-h-16 px-3 py-2 text-[13px]",
+        default: "min-h-16 px-3 py-2 text-sm",
         sm: "min-h-12 px-2 py-1.5 text-xs",
-        xs: "min-h-9 px-2 py-1 text-[11px]",
+        xs: "min-h-9 px-2 py-1 text-xs",
       },
       resize: {
         none: "resize-none",

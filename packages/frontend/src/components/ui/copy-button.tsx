@@ -9,6 +9,7 @@ export function CopyButton({ text, className }: { text: string; className?: stri
 
   return (
     <button
+      type="button"
       onClick={(e) => {
         e.stopPropagation();
         navigator.clipboard.writeText(text).catch(() => {});

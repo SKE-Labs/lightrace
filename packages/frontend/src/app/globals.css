@@ -275,4 +275,101 @@
     right: -1px;
     background: var(--border);
   }
+
+  /* ── Loader (grid dot) ── inspired by design-system Loader */
+  .loader-dim {
+    background: var(--border);
+    opacity: 0.35;
+  }
+  .loader-cell {
+    background: var(--primary);
+    opacity: 0;
+  }
+  .loader-cell-center {
+    opacity: 1;
+    animation: loader-center 1.8s ease-in-out infinite;
+  }
+  .loader-cell-diamond {
+    animation: loader-diamond 1.8s ease-in-out infinite;
+  }
+  .loader-cell-square {
+    animation: loader-square 1.8s ease-in-out infinite;
+  }
+  .loader-cell-extension {
+    animation: loader-extension 1.8s ease-in-out infinite;
+  }
+  @keyframes loader-center {
+    0%,
+    100% {
+      opacity: 1;
+    }
+  }
+  @keyframes loader-diamond {
+    0%,
+    12% {
+      opacity: 0;
+    }
+    20%,
+    80% {
+      opacity: 1;
+    }
+    88%,
+    100% {
+      opacity: 0;
+    }
+  }
+  @keyframes loader-square {
+    0%,
+    28% {
+      opacity: 0;
+    }
+    36%,
+    64% {
+      opacity: 1;
+    }
+    72%,
+    100% {
+      opacity: 0;
+    }
+  }
+  @keyframes loader-extension {
+    0%,
+    44% {
+      opacity: 0;
+    }
+    52%,
+    56% {
+      opacity: 1;
+    }
+    64%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  /* ThinkingDots wave */
+  .loader-wave-cell {
+    background: var(--border);
+    opacity: 0.4;
+  }
+  .loader-wave-row-0 {
+    animation: loader-wave 1.2s ease-in-out infinite;
+  }
+  .loader-wave-row-1 {
+    animation: loader-wave 1.2s ease-in-out infinite 0.15s;
+  }
+  .loader-wave-row-2 {
+    animation: loader-wave 1.2s ease-in-out infinite 0.3s;
+  }
+  @keyframes loader-wave {
+    0%,
+    100% {
+      background: var(--border);
+      opacity: 0.4;
+    }
+    50% {
+      background: var(--primary);
+      opacity: 1;
+    }
+  }
 }

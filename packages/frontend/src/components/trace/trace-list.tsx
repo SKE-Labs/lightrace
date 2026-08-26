@@ -16,12 +16,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { formatDuration, formatTokens, formatCost, formatRelativeTime } from "@/lib/utils";
+import {
+  formatDuration,
+  formatTokens,
+  formatCost,
+  formatRelativeTime,
+  isUnauthorizedError,
+} from "@/lib/utils";
 import { PaginationBar } from "@/components/pagination-bar";
 import { GitBranch, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const PAGE_SIZE = 20;
+import { Skeleton } from "@/components/ui/skeleton";
+import { PAGE_SIZE, REALTIME_REFETCH_INTERVAL_MS } from "@/lib/constants";
 
 type TraceListItem = RouterOutputs["traces"]["list"]["items"][number];
 // Forks share the same shape as parent items (no nested forks-of-forks)
@@ -35,8 +41,8 @@ export function TraceList() {
   const [expandedForks, setExpandedForks] = useState<Set<string>>(new Set());
 
   const { data, isLoading, isError, error } = trpc.traces.list.useQuery(
-    { projectId: projectId!, limit: PAGE_SIZE, page, search: search || undefined },
-    { retry: false, refetchInterval: 30000, enabled: !!projectId },
+    { projectId: projectId!, limit: PAGE_SIZE.TRACES, page, search: search || undefined },
+    { retry: false, refetchInterval: REALTIME_REFETCH_INTERVAL_MS, enabled: !!projectId },
   );
 
   const traces = data?.items ?? [];
@@ -92,32 +98,32 @@ export function TraceList() {
               Array.from({ length: 5 }, (_, i) => (
                 <TableRow key={`skeleton-${i}`} className="hover:bg-transparent">
                   <TableCell>
-                    <div className="h-4 w-32 bg-muted animate-pulse rounded" />
+                    <Skeleton className="h-4 w-32" />
                   </TableCell>
                   <TableCell>
-                    <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+                    <Skeleton className="h-4 w-16" />
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="h-4 w-12 bg-muted animate-pulse rounded ml-auto" />
+                    <Skeleton className="h-4 w-12 ml-auto" />
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="h-4 w-10 bg-muted animate-pulse rounded ml-auto" />
+                    <Skeleton className="h-4 w-10 ml-auto" />
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="h-4 w-14 bg-muted animate-pulse rounded ml-auto" />
+                    <Skeleton className="h-4 w-14 ml-auto" />
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="h-4 w-6 bg-muted animate-pulse rounded ml-auto" />
+                    <Skeleton className="h-4 w-6 ml-auto" />
                   </TableCell>
                   <TableCell>
-                    <div className="h-4 w-20 bg-muted animate-pulse rounded" />
+                    <Skeleton className="h-4 w-20" />
                   </TableCell>
                 </TableRow>
               ))}
             {isError && (
               <TableRow className="hover:bg-transparent">
                 <TableCell colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
-                  {error?.message?.includes("UNAUTHORIZED") ? (
+                  {isUnauthorizedError(error) ? (
                     <span>
                       Please{" "}
                       <a href="/login" className="text-primary hover:underline">
@@ -162,7 +168,7 @@ export function TraceList() {
         page={page}
         totalPages={totalPages}
         totalCount={totalCount}
-        pageSize={PAGE_SIZE}
+        pageSize={PAGE_SIZE.TRACES}
         onPageChange={setPage}
         label="traces"
       />
@@ -213,7 +219,7 @@ function FragmentRow({
             {trace.hasWarning && (
               <span className="size-1.5 rounded-full bg-warning shrink-0" title="Has warnings" />
             )}
-            <span className="font-medium text-foreground truncate">
+            <span className="text-sm font-medium text-foreground truncate">
               {trace.name || trace.id.slice(0, 8)}
             </span>
             {trace.primaryModel && (
@@ -235,23 +241,25 @@ function FragmentRow({
         <TableCell>
           <Tooltip>
             <TooltipTrigger className="cursor-default">
-              <span className="text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 {formatRelativeTime(new Date(trace.timestamp))}
               </span>
             </TooltipTrigger>
             <TooltipContent>{new Date(trace.timestamp).toLocaleString()}</TooltipContent>
           </Tooltip>
         </TableCell>
-        <TableCell className="text-right font-mono text-muted-foreground">
+        <TableCell className="text-right text-xs font-mono text-muted-foreground">
           {trace.latencyMs > 0 ? formatDuration(trace.latencyMs) : "—"}
         </TableCell>
-        <TableCell className="text-right font-mono text-muted-foreground">
+        <TableCell className="text-right text-xs font-mono text-muted-foreground">
           {trace.totalTokens > 0 ? formatTokens(trace.totalTokens) : "—"}
         </TableCell>
-        <TableCell className="text-right font-mono text-muted-foreground">
+        <TableCell className="text-right text-xs font-mono text-muted-foreground">
           {trace.totalCost ? formatCost(trace.totalCost) : "—"}
         </TableCell>
-        <TableCell className="text-right text-muted-foreground">{trace.observationCount}</TableCell>
+        <TableCell className="text-right text-xs font-mono text-muted-foreground">
+          {trace.observationCount}
+        </TableCell>
         <TableCell>
           <div className="flex gap-1">
             {trace.tags.slice(0, 3).map((tag) => (
@@ -293,7 +301,7 @@ function FragmentRow({
                       title="Has warnings"
                     />
                   )}
-                  <span className="text-foreground truncate ml-1">
+                  <span className="text-sm text-foreground truncate ml-1">
                     {fork.name || fork.id.slice(0, 8)}
                   </span>
                   {fork.primaryModel && (
@@ -306,23 +314,23 @@ function FragmentRow({
               <TableCell>
                 <Tooltip>
                   <TooltipTrigger className="cursor-default">
-                    <span className="text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {formatRelativeTime(new Date(fork.timestamp))}
                     </span>
                   </TooltipTrigger>
                   <TooltipContent>{new Date(fork.timestamp).toLocaleString()}</TooltipContent>
                 </Tooltip>
               </TableCell>
-              <TableCell className="text-right font-mono text-muted-foreground">
+              <TableCell className="text-right text-xs font-mono text-muted-foreground">
                 {fork.latencyMs > 0 ? formatDuration(fork.latencyMs) : "—"}
               </TableCell>
-              <TableCell className="text-right font-mono text-muted-foreground">
+              <TableCell className="text-right text-xs font-mono text-muted-foreground">
                 {fork.totalTokens > 0 ? formatTokens(fork.totalTokens) : "—"}
               </TableCell>
-              <TableCell className="text-right font-mono text-muted-foreground">
+              <TableCell className="text-right text-xs font-mono text-muted-foreground">
                 {fork.totalCost ? formatCost(fork.totalCost) : "—"}
               </TableCell>
-              <TableCell className="text-right text-muted-foreground">
+              <TableCell className="text-right text-xs font-mono text-muted-foreground">
                 {fork.observationCount}
               </TableCell>
               <TableCell>

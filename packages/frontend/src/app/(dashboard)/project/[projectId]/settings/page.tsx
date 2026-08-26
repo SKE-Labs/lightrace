@@ -32,6 +32,8 @@ import {
 } from "@/components/ui/table";
 import { UserPlus } from "lucide-react";
 import { CopyButton } from "@/components/ui/copy-button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { RoleBadge, isAdmin as checkIsAdmin } from "@/lib/role-config";
 import { SECTION_LABEL } from "@/lib/utils";
 
@@ -117,7 +119,7 @@ function ApiKeysTab() {
 lt = Lightrace(
     public_key="${newKeyResult.publicKey}",
     secret_key="${newKeyResult.secretKey}",
-    host="http://localhost:3000"
+    host="${typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"}"
 )`}
                     </pre>
                   </div>
@@ -147,11 +149,11 @@ lt = Lightrace(
           <TableBody>
             {isLoading && (
               <TableRow className="hover:bg-transparent">
-                <TableCell
-                  colSpan={isAdmin ? 5 : 4}
-                  className="px-4 py-8 text-center text-muted-foreground"
-                >
-                  Loading…
+                <TableCell colSpan={isAdmin ? 5 : 4} className="px-4 py-8">
+                  <div className="flex flex-col gap-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                  </div>
                 </TableCell>
               </TableRow>
             )}
@@ -330,11 +332,11 @@ function MembersTab() {
           <TableBody>
             {isLoading && (
               <TableRow className="hover:bg-transparent">
-                <TableCell
-                  colSpan={isAdmin ? 4 : 3}
-                  className="px-4 py-8 text-center text-muted-foreground"
-                >
-                  Loading…
+                <TableCell colSpan={isAdmin ? 4 : 3} className="px-4 py-8">
+                  <div className="flex flex-col gap-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-2/3" />
+                  </div>
                 </TableCell>
               </TableRow>
             )}
@@ -399,7 +401,7 @@ function MembersTab() {
           </TableBody>
         </Table>
         {members && (
-          <div className="px-4 py-2 text-[11px] text-muted-foreground border-t border-border">
+          <div className="px-4 py-2 text-xs text-muted-foreground border-t border-border">
             {members.length} member{members.length !== 1 ? "s" : ""}
           </div>
         )}

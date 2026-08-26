@@ -1,6 +1,6 @@
 export { db } from "./db";
 export { redis, createRedisClient } from "./redis";
-export { formatDuration, formatTokens, formatCost } from "./utils";
+export { formatDuration, formatTokens, formatCost, formatRelativeTime } from "./utils";
 export {
   ingestionEvent,
   ingestionBatchSchema,
