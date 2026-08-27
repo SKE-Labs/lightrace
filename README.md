@@ -9,7 +9,11 @@
 <h1 align="center">LightRace</h1>
 
 <p align="center">
-  Open-source LLM tracing and observability with remote tool invocation.
+  Open-source Agent Tracing, observability, and error tracking — with remote tool invocation.
+</p>
+
+<p align="center">
+  <em>Traces tell you what happened. Issues tell you what broke.</em>
 </p>
 
 <p align="center">
@@ -24,6 +28,7 @@
   <a href="#quick-start">Quick Start</a> &middot;
   <a href="#sdks">SDKs</a> &middot;
   <a href="#features">Features</a> &middot;
+  <a href="#error-tracking--issues">Error Tracking</a> &middot;
   <a href="#langfuse-compatibility">Langfuse Compatible</a> &middot;
   <a href="#development">Development</a>
 </p>
@@ -217,7 +222,7 @@ Both SDKs support the same observation types:
 | ------------ | ----------------------------------------------------- |
 | _(default)_  | Root trace — top-level unit of work                   |
 | `span`       | Generic child operation                               |
-| `generation` | LLM call (tracks model, tokens, cost)                 |
+| `generation` | Agent LLM call (tracks model, tokens, cost)           |
 | `tool`       | Tool function — remotely invocable from the dashboard |
 | `chain`      | Logical grouping of steps                             |
 | `event`      | Point-in-time marker                                  |
@@ -228,7 +233,8 @@ Set `invoke=False` (Python) or `invoke: false` (JS) on a tool to trace it withou
 
 ## Features
 
-- **Trace & observe** — hierarchical trace viewer with token usage breakdown, latency, and cost
+- **Agent tracing & observe** — hierarchical trace viewer with token usage breakdown, latency, and cost
+- **Error tracking & issue grouping** — every failed observation becomes a grouped Issue you can triage, assign, and resolve (see [Error Tracking](#error-tracking--issues))
 - **Remote tool invocation** — re-run any `@trace(type="tool")` function directly from the dashboard
 - **Real-time updates** — live trace streaming via WebSocket (Redis Pub/Sub)
 - **Tools page** — see connected SDK instances, registered tools, and their schemas
@@ -237,16 +243,66 @@ Set `invoke=False` (Python) or `invoke: false` (JS) on a tool to trace it withou
 
 ---
 
+## Error Tracking & Issues
+
+Every failed tool, model call, or span becomes an Issue you can triage and fix — right next to the trace that produced it.
+
+Any observation that ends with `level: "ERROR"` is captured as an **Error Event** and grouped into an **Error Issue**. An Issue is a group of similar Events that share the same fingerprint; an Event is a single occurrence with its trace, stacktrace, and context. Fix the Issue once, clear every matching Event.
+
+### How it works
+
+```python
+from lightrace import Lightrace, trace
+
+lt = Lightrace(public_key="pk-lt-demo", secret_key="sk-lt-demo", host="http://localhost:3000")
+
+@trace(type="tool")          # tool, generation, span, chain, or event
+def search(query: str):
+    return call_external_api(query)  # raise on failure → auto-captured
+
+try:
+    search("hello")
+except Exception:
+    raise
+finally:
+    lt.flush()
+```
+
+```typescript
+import { LightRace, trace } from "lightrace";
+const lt = new LightRace({ publicKey: "pk-lt-demo", secretKey: "sk-lt-demo" });
+const search = trace("search", { type: "tool" }, async (q: string) => callAPI(q));
+// thrown errors are captured as level: "ERROR" with statusMessage + stacktrace automatically
+```
+
+No extra setup. The Python and JS SDKs set `level=ERROR`, `statusMessage`, `errorType`, and `errorStacktrace` on any unhandled exception, and integrations (OpenAI, Anthropic, LangChain, Claude Agent SDK) do the same for model and framework errors. You can also set the fields explicitly via `POST /api/public/ingestion` or OTel.
+
+### What you get
+
+- **Grouped issues, not noisy events** — fingerprints are built from `type` + `toolName`/`model` + `errorType` + normalized message. High-cardinality noise (UUIDs, emails, IPs, hashes, numbers) is normalized to `<uuid>` / `<num>` and common provider failures are bucketed (`rate_limit`, `insufficient_quota`, `context_length_exceeded`, `overloaded`, `auth_error`, `timeout`), so one bad deploy doesn't create hundreds of duplicate Issues.
+
+- **Triage built in** — lifecycle `UNRESOLVED → RESOLVED → ARCHIVED` with `ESCALATING` / `REGRESSED` / `FOR_REVIEW` for regressions, `HIGH` / `MEDIUM` / `LOW` priority auto-calculated from level, `handled` flag, and 24h volume, plus assignee support per project.
+
+- **From Issue to root cause in one click** — each Issue shows `shortId` (`ERR-…`), culprit (tool/model name), `firstSeen` / `lastSeen`, `count` / `traceCount` / `userCount`, fingerprint, level, and full stacktrace. Open the Errors list → Issue detail → recent events → exact trace/observation, with `handled` vs `unhandled` and a copyable stacktrace panel. The same error banner and stacktrace also appears inline in the trace view.
+
+- **Built for agent workloads** — works the same for tool exceptions, `generation` errors (429s, quota, timeouts), and `span`/`chain`/`event` failures. Filter by `status`, `type` (`TOOL` / `GENERATION` / `SPAN` / `CHAIN` / `EVENT`), `toolName`, search by title/culprit, sort by `lastSeen` / `count`. Events are retained for 90 days with daily pruning and counters stay in sync.
+
+**Dashboard:** `Project → Errors` (table with Events, Traces, Priority, Status, Last Seen) → `Issue detail` (status/priority controls, recent events, stacktrace, tags, trace links).
+
+---
+
 ## Why LightRace?
 
-|                              | LightRace |     Langfuse (OSS)     |    LangSmith    |
-| ---------------------------- | :-------: | :--------------------: | :-------------: |
-| Self-host (single command)   |    Yes    |      Manual setup      | No (cloud-only) |
-| Remote tool invocation       |    Yes    |           No           |       No        |
-| Langfuse SDK compatible      |    Yes    |           —            |       No        |
-| Claude Agent SDK integration |    Yes    |           No           |       No        |
-| Real-time trace streaming    |    Yes    |        Polling         |       Yes       |
-| Open source (Apache 2.0)     |    Yes    | Yes (EE features paid) |       No        |
+|                                          | LightRace |     Langfuse (OSS)     |    LangSmith    |     Sentry     |
+| ---------------------------------------- | :-------: | :--------------------: | :-------------: | :------------: |
+| Self-host (single command)               |    Yes    |      Manual setup      | No (cloud-only) |  Manual setup  |
+| Remote tool invocation                   |    Yes    |           No           |       No        |       No       |
+| **Error tracking & issue grouping**      |  **Yes**  |           No           |       No        |      Yes       |
+| Stacktraces for failed tools/generations |    Yes    |       Trace only       |   Trace only    | App exceptions |
+| Langfuse SDK compatible                  |    Yes    |           —            |       No        |       No       |
+| Claude Agent SDK integration             |    Yes    |           No           |       No        |       No       |
+| Real-time trace streaming                |    Yes    |        Polling         |       Yes       |      Yes       |
+| Open source (Apache 2.0)                 |    Yes    | Yes (EE features paid) |       No        |     BSL\*      |
 
 ---
 
